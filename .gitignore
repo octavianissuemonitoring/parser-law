@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Project specific
+mo_partea_i_pdfs/
+*.pdf
+*.csv
+*.tmp
+pagina*_debug.png
