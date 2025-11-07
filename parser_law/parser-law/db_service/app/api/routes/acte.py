@@ -3,7 +3,7 @@ API Routes for Acte Legislative (Legislative Acts).
 """
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status, BackgroundTasks
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 
@@ -16,6 +16,7 @@ from app.schemas import (
     ActLegislativWithArticole,
     ActLegislativList,
 )
+from app.services import ImportService
 
 router = APIRouter(prefix="/acte", tags=["Acte Legislative"])
 
@@ -241,3 +242,25 @@ async def get_act_stats(act_id: int, db: DBSession) -> dict:
         "articole_with_labels": articole_with_labels,
         "label_coverage": round(articole_with_labels / len(articole) * 100, 2) if articole else 0,
     }
+
+
+@router.post("/import", status_code=status.HTTP_200_OK)
+async def import_from_csv(
+    db: DBSession,
+    rezultate_dir: str = Query("../rezultate", description="Path to rezultate directory"),
+) -> dict:
+    """
+    Import legislative acts and articles from CSV files in rezultate directory.
+    
+    - **rezultate_dir**: Path to directory containing CSV and MD files
+    
+    This endpoint will:
+    1. Scan the rezultate directory for CSV files
+    2. For each CSV file, create an ActLegislativ and import all articles
+    3. Skip acts that already exist (based on URL)
+    4. Return statistics about the import process
+    """
+    service = ImportService(rezultate_dir)
+    stats = await service.import_all_files(db)
+    
+    return stats
