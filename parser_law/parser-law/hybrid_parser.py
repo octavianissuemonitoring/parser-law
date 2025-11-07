@@ -48,45 +48,6 @@ def int_to_roman(num: int) -> str:
         i += 1
     return roman_num
 
-def format_article_text_for_markdown(text: str) -> str:
-    """
-    Formatează textul articolului pentru Markdown:
-    - Alineate: (1), (2), etc. pe rânduri separate
-    - Litere: a), b), c) pe rânduri separate cu indentare
-    - Separatorul ... devine newline
-    """
-    if not text or text == '*[Conținut lipsă]*':
-        return text
-    
-    # Mai întâi, tratează cazul când o literă vine direct după : fără ...
-    # Ex: "atribuții:a)text" -> "atribuții:\n\n  **a)** text"
-    text = re.sub(r':([a-z]\))', r':\n\n  **\1**', text)
-    
-    # Split pe separator ... pentru litere/alineate
-    parts = text.split('...')
-    
-    formatted_lines = []
-    for i, part in enumerate(parts):
-        part = part.strip()
-        if not part:
-            continue
-        
-        # Detectează dacă începe cu literă: a), b), c), etc.
-        letter_match = re.match(r'^([a-z]\))', part)
-        if letter_match:
-            # Dacă litera e deja formatată cu ** din regex-ul de mai sus, nu o formata din nou
-            if not part.startswith('**'):
-                formatted_lines.append(f"  **{letter_match.group(1)}** {part[2:].strip()}")
-            else:
-                formatted_lines.append(f"  {part}")
-        # Detectează dacă începe cu alineat: (1), (2), etc.
-        elif re.match(r'^\(\d+\)', part):
-            formatted_lines.append(f"\n{part}")
-        else:
-            formatted_lines.append(part)
-    
-    return '\n\n'.join(formatted_lines) if formatted_lines else text
-
 class HybridLegislativeParser:
     """
     Parser simplificat care folosește doar strategia HTML CSS (optimă pentru 95% din documente)
@@ -1457,27 +1418,3 @@ class HybridLegislativeParser:
             logger.error(f"❌ Eroare la salvare: {e}")
         
         return saved_files
-
-# Funcție de conveniență
-def parse_legislative_content(content: str, content_type: str = 'auto', 
-                            config: Optional[Dict[str, Any]] = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-    """Funcție de conveniență pentru parsarea conținutului legislativ"""
-    parser = HybridLegislativeParser(config)
-    return parser.parse(content, content_type)
-
-if __name__ == "__main__":
-    print("🧪 Testez parserul simplificat...")
-    
-    # Test cu fișier real dacă există
-    if os.path.exists("LEGE 121 30_04_2024.html"):
-        with open("LEGE 121 30_04_2024.html", 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        parser = HybridLegislativeParser()
-        df, metrics = parser.parse(content, 'html')
-        
-        print(f"✅ Rezultate: {len(df)} articole")
-        print(f"✅ Confidence: {metrics['confidence']:.2f}")
-        print(f"✅ Coloane: {list(df.columns)}")
-    else:
-        print("⚠️ Fișierul de test nu a fost găsit")
