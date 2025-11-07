@@ -96,6 +96,9 @@ class HybridLegislativeParser:
         """Inițializează parserul cu configurație"""
         self.config = config or {}
         self.debug_mode = self.config.get('debug', False)
+        self.last_html_content = None  # Salvează ultimul HTML parsat pentru generare Markdown
+        self.last_soup = None  # Salvează BeautifulSoup object
+        self.last_metadata = None  # Salvează metadata extrasă
     
     def parse(self, content: str, content_type: str = 'auto') -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
@@ -138,6 +141,11 @@ class HybridLegislativeParser:
             # Extrage metadata și o adaugă la toate rândurile
             soup = BeautifulSoup(content, 'html.parser')
             metadata = self._extract_html_metadata(soup)
+            
+            # Salvează pentru generare Markdown
+            self.last_html_content = content
+            self.last_soup = soup
+            self.last_metadata = metadata
             
             # Mapare lowercase -> uppercase (pentru verificare)
             col_uppercase_map = {
@@ -201,27 +209,89 @@ class HybridLegislativeParser:
     
     def _extract_html_metadata(self, soup: BeautifulSoup) -> Dict[str, Any]:
         """
-        Extrage metadata suplimentară din HTML (denumire, emitent, MOF).
-        Metadata principală (tip_act, nr_act, data_act) este deja extrasă în html_parser.
+        Extrage metadata completă din HTML (tip_act, nr_act, data_act, denumire, emitent, MOF).
+        Această metodă extrage TOATĂ metadata necesară pentru generare Markdown.
         """
         metadata: Dict[str, Any] = {
+            'tip_act': None,
+            'nr_act': None,
+            'data_act': None,
             'denumire': None,
             'emitent': None,
             'mof_nr': None,
             'mof_data': None
         }
         
-        # Extrage denumirea din clasa S_HDR: "privind energia eoliană offshore"
+        # Extrage din S_DEN (cel mai precis)
+        s_den = soup.find(class_='S_DEN')
+        if s_den:
+            den_text = s_den.get_text(strip=True)
+            
+            # Pattern-uri pentru diferite formate
+            patterns = [
+                r'(LEGE|ORDONANȚ[AĂ]\s+DE\s+URGEN[TȚ][AĂ]|ORDONANȚ[AĂ]|HOT[AĂ]R[ÂÎ]RE|DECRET|ORDIN|REGULAMENT|NORM[AĂ]|INSTRUC[TȚ]IUNE|METODOLOGIE)\s+nr\.?\s*(\d+)\s+din\s+(\d{1,2})\s+(\w+)\s+(\d{4})',
+                r'(LEGE|ORDONANȚ[AĂ]\s+DE\s+URGEN[TȚ][AĂ]|ORDONANȚ[AĂ]|HOT[AĂ]R[ÂÎ]RE|DECRET|ORDIN|REGULAMENT|NORM[AĂ]|INSTRUC[TȚ]IUNE|METODOLOGIE)\s+nr\.?\s*(\d+)/(\d{4})',
+                r'(METODOLOGIE|REGULAMENT|NORM[AĂ]|INSTRUC[TȚ]IUNE)\s+din\s+(\d{1,2})\s+(\w+)\s+(\d{4})'
+            ]
+            
+            for pattern_idx, pattern in enumerate(patterns):
+                match = re.search(pattern, den_text, re.IGNORECASE)
+                if match:
+                    tip_act = match.group(1).upper()
+                    
+                    # Normalizează tipul actului
+                    if 'URGENȚĂ' in tip_act or 'URGENTA' in tip_act:
+                        tip_act = 'ORDONANȚĂ DE URGENȚĂ'
+                    elif 'ORDONANȚ' in tip_act:
+                        tip_act = 'ORDONANȚĂ'
+                    elif 'HOTĂR' in tip_act:
+                        tip_act = 'HOTĂRÂRE'
+                    elif 'INSTRUCȚ' in tip_act:
+                        tip_act = 'INSTRUCȚIUNE'
+                    elif 'NORMĂ' in tip_act or 'NORMA' in tip_act:
+                        tip_act = 'NORMĂ'
+                    elif 'METODOLOGI' in tip_act:
+                        tip_act = 'METODOLOGIE'
+                    
+                    metadata['tip_act'] = tip_act
+                    
+                    # Pattern 3 (fără număr: "METODOLOGIE din 29 iulie 2025")
+                    if pattern_idx == 2:
+                        metadata['nr_act'] = None
+                        zi = match.group(2)
+                        luna = match.group(3)
+                        an = match.group(4)
+                        luna_nr = self._convert_month_to_number(luna)
+                        metadata['data_act'] = f"{zi.zfill(2)}/{luna_nr}/{an}"
+                    else:
+                        # Pattern 1 și 2 (cu număr)
+                        metadata['nr_act'] = int(match.group(2))
+                        
+                        if pattern_idx == 0:
+                            # Pattern 1: "LEGE nr. 123 din 30 aprilie 2024"
+                            zi = match.group(3)
+                            luna = match.group(4)
+                            an = match.group(5)
+                            luna_nr = self._convert_month_to_number(luna)
+                            metadata['data_act'] = f"{zi.zfill(2)}/{luna_nr}/{an}"
+                        else:
+                            # Pattern 2: "LEGE nr. 123/2024"
+                            an = match.group(3)
+                            metadata['data_act'] = f"01/01/{an}"  # Dată aproximativă
+                    
+                    break
+        
+        # Extrage denumirea din S_HDR
         s_hdr = soup.find('span', class_='S_HDR')
         if s_hdr:
             metadata['denumire'] = s_hdr.get_text(strip=True)
         
-        # Extrage emitentul din clasa S_EMT_BDY: "PARLAMENTUL ROMÂNIEI"
+        # Extrage emitentul din S_EMT_BDY
         s_emt_bdy = soup.find('span', class_='S_EMT_BDY')
         if s_emt_bdy:
             metadata['emitent'] = s_emt_bdy.get_text(strip=True)
         
-        # Extrage info MOF din clasa S_PUB_BDY: "MONITORUL OFICIAL nr. 421 din 8 mai 2024"
+        # Extrage info MOF din S_PUB_BDY
         s_pub_bdy = soup.find('span', class_='S_PUB_BDY')
         if s_pub_bdy:
             text = s_pub_bdy.get_text(strip=True)
@@ -235,16 +305,19 @@ class HybridLegislativeParser:
             match_mof_data = re.search(r'din\s+(\d+)\s+(\w+)\s+(\d{4})', text, re.I)
             if match_mof_data:
                 zi, luna, an = match_mof_data.groups()
-                
-                luni_map = {
-                    'ianuarie': '01', 'februarie': '02', 'martie': '03', 'aprilie': '04',
-                    'mai': '05', 'iunie': '06', 'iulie': '07', 'august': '08',
-                    'septembrie': '09', 'octombrie': '10', 'noiembrie': '11', 'decembrie': '12'
-                }
-                luna_nr = luni_map.get(luna.lower(), '01')
+                luna_nr = self._convert_month_to_number(luna)
                 metadata['mof_data'] = f"{zi.zfill(2)}/{luna_nr}/{an}"
         
         return metadata
+    
+    def _convert_month_to_number(self, luna: str) -> str:
+        """Convertește luna din text în număr (01-12)"""
+        luni_map = {
+            'ianuarie': '01', 'februarie': '02', 'martie': '03', 'aprilie': '04',
+            'mai': '05', 'iunie': '06', 'iulie': '07', 'august': '08',
+            'septembrie': '09', 'octombrie': '10', 'noiembrie': '11', 'decembrie': '12'
+        }
+        return luni_map.get(luna.lower(), luna)
     
     def _validate_extraction(self, df: pd.DataFrame) -> Dict[str, Any]:
         """
@@ -838,6 +911,482 @@ class HybridLegislativeParser:
         
         return "\n".join(lines)
     
+    def _generate_markdown_from_html(self, soup: BeautifulSoup, metadata: Dict[str, Any]) -> str:
+        """
+        Generează Markdown direct din HTML, fără conversie prin DataFrame.
+        Această metodă înlocuiește _generate_markdown() pentru o procesare mai directă și precisă.
+        
+        Args:
+            soup: BeautifulSoup object cu HTML-ul parsat
+            metadata: Metadata extrasă (tip_act, nr_act, data_act, etc.)
+        
+        Returns:
+            String cu conținutul Markdown complet
+        """
+        lines = []
+        
+        # === YAML FRONTMATTER ===
+        lines.append("---")
+        lines.append(f"tip_act: {metadata.get('tip_act', 'N/A')}")
+        lines.append(f"nr_act: {metadata.get('nr_act', 'N/A')}")
+        lines.append(f"data_act: {metadata.get('data_act', 'N/A')}")
+        
+        # Extrage anul din data_act (ex: "30/04/2024" -> 2024)
+        an_act = 'N/A'
+        if metadata.get('data_act'):
+            match = re.search(r'/(\d{4})$', metadata['data_act'])
+            if match:
+                an_act = match.group(1)
+        lines.append(f"an_act: {an_act}")
+        
+        lines.append(f"emitent: {metadata.get('emitent', 'N/A')}")
+        lines.append(f"denumire: {metadata.get('denumire', 'N/A')}")
+        lines.append(f"mof_nr: {metadata.get('mof_nr', 'N/A')}")
+        lines.append(f"mof_data: {metadata.get('mof_data', 'N/A')}")
+        
+        # Extrage anul MOF din mof_data
+        mof_an = 'N/A'
+        if metadata.get('mof_data'):
+            match = re.search(r'/(\d{4})$', metadata['mof_data'])
+            if match:
+                mof_an = match.group(1)
+        lines.append(f"mof_an: {mof_an}")
+        
+        # Numără total articole
+        total_articole = len(soup.find_all(class_='S_ART_TTL'))
+        lines.append(f"total_articole: {total_articole}")
+        lines.append("---")
+        lines.append("")
+        
+        # === HEADER ===
+        lines.append(f"# {metadata.get('tip_act', 'ACT LEGISLATIV')} nr. {metadata.get('nr_act', 'N/A')} din {metadata.get('data_act', 'N/A')}")
+        lines.append("")
+        if metadata.get('emitent'):
+            lines.append(f"**Emitent:** {metadata['emitent']}")
+            lines.append("")
+        if metadata.get('mof_nr') and metadata.get('mof_data'):
+            lines.append(f"**Publicat în:** Monitorul Oficial nr. {metadata['mof_nr']} din {metadata['mof_data']}")
+            lines.append("")
+        if metadata.get('denumire'):
+            lines.append(f"**Denumire:** {metadata['denumire']}")
+            lines.append("")
+        
+        # === INDEX IERARHIC ===
+        lines.append("## INDEX")
+        lines.append("")
+        
+        # Construiește INDEX din structura HTML
+        index_lines = self._build_index_from_html(soup)
+        lines.extend(index_lines)
+        lines.append("")
+        
+        # === ARTICOLE ===
+        lines.append("## ARTICOLE")
+        lines.append("")
+        
+        # Procesează fiecare articol direct din HTML
+        article_lines = self._build_articles_from_html(soup, metadata)
+        lines.extend(article_lines)
+        
+        return "\n".join(lines)
+    
+    def _build_index_from_html(self, soup: BeautifulSoup) -> List[str]:
+        """
+        Construiește INDEX-ul ierarhic direct din HTML.
+        Detectează TITLURI, CAPITOLE, SECȚIUNI, SUBSECȚIUNI și articole.
+        """
+        lines = []
+        
+        # Context ierarhic curent
+        current_titlu = None
+        current_capitol = None
+        current_sectiune = None
+        
+        # Găsește toate elementele de structură în ordine
+        for element in soup.find_all(class_=re.compile(r'S_(TTL|CAP|SEC|ART)_TTL')):
+            classes = element.get('class', [])
+            text = element.get_text(strip=True)
+            
+            # TITLURI (S_TTL_TTL)
+            if 'S_TTL_TTL' in classes:
+                current_titlu = text
+                current_capitol = None
+                current_sectiune = None
+                lines.append(f"### {text}")
+                
+            # CAPITOLE (S_CAP_TTL)
+            elif 'S_CAP_TTL' in classes:
+                current_capitol = text
+                current_sectiune = None
+                
+                # Găsește denumirea capitolului (S_CAP_DEN)
+                den_elem = element.find_next_sibling(class_='S_CAP_DEN')
+                if den_elem:
+                    capitol_full = f"{text} - {den_elem.get_text(strip=True)}"
+                else:
+                    capitol_full = text
+                
+                if current_titlu:
+                    lines.append(f"#### {capitol_full}")
+                else:
+                    lines.append(f"### {capitol_full}")
+            
+            # SECȚIUNI (S_SEC_TTL)
+            elif 'S_SEC_TTL' in classes:
+                current_sectiune = text
+                
+                # Găsește denumirea secțiunii (S_SEC_DEN)
+                den_elem = element.find_next_sibling(class_='S_SEC_DEN')
+                if den_elem:
+                    sectiune_full = f"{text} - {den_elem.get_text(strip=True)}"
+                else:
+                    sectiune_full = text
+                
+                if current_capitol:
+                    lines.append(f"##### {sectiune_full}")
+                elif current_titlu:
+                    lines.append(f"#### {sectiune_full}")
+                else:
+                    lines.append(f"### {sectiune_full}")
+            
+            # ARTICOLE (S_ART_TTL)
+            elif 'S_ART_TTL' in classes:
+                # Extrage numărul articolului
+                match = re.search(r'articol(ul)?\s+(\d+)', text, re.I)
+                if match:
+                    art_nr = match.group(2)
+                    lines.append(f"- [Articolul {art_nr}](#articolul-{art_nr})")
+        
+        return lines
+    
+    def _build_articles_from_html(self, soup: BeautifulSoup, metadata: Dict[str, Any]) -> List[str]:
+        """
+        Construiește secțiunea ARTICOLE direct din HTML.
+        Pentru fiecare articol: context ierarhic, issue, explicație, metadata, conținut.
+        """
+        lines = []
+        
+        # Context ierarhic curent
+        context = {
+            'titlu': None,
+            'capitol': None,
+            'sectiune': None,
+            'subsectiune': None
+        }
+        
+        # Iterează prin toate elementele pentru a construi context și extrage articole
+        for element in soup.find_all(class_=re.compile(r'S_(TTL|CAP|SEC|ART)_TTL')):
+            classes = element.get('class', [])
+            text = element.get_text(strip=True)
+            
+            # Actualizează context
+            if 'S_TTL_TTL' in classes:
+                context['titlu'] = text
+                context['capitol'] = None
+                context['sectiune'] = None
+                context['subsectiune'] = None
+                
+            elif 'S_CAP_TTL' in classes:
+                den_elem = element.find_next_sibling(class_='S_CAP_DEN')
+                if den_elem:
+                    context['capitol'] = f"{text} - {den_elem.get_text(strip=True)}"
+                else:
+                    context['capitol'] = text
+                context['sectiune'] = None
+                context['subsectiune'] = None
+                
+            elif 'S_SEC_TTL' in classes:
+                den_elem = element.find_next_sibling(class_='S_SEC_DEN')
+                if den_elem:
+                    context['sectiune'] = f"{text} - {den_elem.get_text(strip=True)}"
+                else:
+                    context['sectiune'] = text
+                context['subsectiune'] = None
+            
+            # Procesează ARTICOL
+            elif 'S_ART_TTL' in classes:
+                # Extrage numărul articolului
+                match = re.search(r'articol(ul)?\s+(\d+)', text, re.I)
+                if not match:
+                    continue
+                
+                art_nr = match.group(2)
+                
+                # Header articol
+                lines.append(f"### Articolul {art_nr}")
+                lines.append("")
+                
+                # Context ierarhic
+                lines.append("**Context ierarhic:**")
+                if context['titlu']:
+                    lines.append(f"- **Titlu:** {context['titlu']}")
+                if context['capitol']:
+                    lines.append(f"- **Capitol:** {context['capitol']}")
+                if context['sectiune']:
+                    lines.append(f"- **Secțiune:** {context['sectiune']}")
+                if context['subsectiune']:
+                    lines.append(f"- **Subsecțiune:** {context['subsectiune']}")
+                lines.append("")
+                
+                # Issue placeholder
+                lines.append("**Issue:** *[TODO - adaugă descriere scurtă]*")
+                lines.append("")
+                
+                # Explicație placeholder
+                lines.append("**Explicație:** *[TODO - adaugă explicație în 1-2 fraze, limbaj simplu]*")
+                lines.append("")
+                
+                # Metadata YAML
+                lines.append("**Metadata:**")
+                lines.append("```yaml")
+                lines.append(f"tip_element: articol")
+                lines.append(f"nr_articol: {art_nr}")
+                if context['titlu']:
+                    lines.append(f"titlu: {context['titlu']}")
+                if context['capitol']:
+                    lines.append(f"capitol: {context['capitol']}")
+                if context['sectiune']:
+                    lines.append(f"sectiune: {context['sectiune']}")
+                lines.append(f"tip_act: {metadata.get('tip_act', 'N/A')}")
+                lines.append(f"nr_act: {metadata.get('nr_act', 'N/A')}")
+                
+                # Extrage anul din data_act
+                an_act = 'N/A'
+                if metadata.get('data_act'):
+                    match_an = re.search(r'/(\d{4})$', metadata['data_act'])
+                    if match_an:
+                        an_act = match_an.group(1)
+                lines.append(f"an_act: {an_act}")
+                lines.append(f"denumire_act: {metadata.get('denumire', 'N/A')}")
+                lines.append("```")
+                lines.append("")
+                
+                # Conținut articol (extrage din HTML)
+                lines.append("**Conținut:**")
+                lines.append("")
+                
+                article_content = self._extract_article_content_from_html(element)
+                if article_content:
+                    lines.append(article_content)
+                else:
+                    lines.append("*[Conținut lipsă]*")
+                
+                lines.append("")
+                lines.append("---")
+                lines.append("")
+        
+        return lines
+    
+    def _normalize_legislative_text(self, text: str) -> str:
+        """
+        Normalizează textul legislativ adăugând spații înainte de referințe legislative
+        care au fost unite greșit în HTML-ul original.
+        
+        Exemple:
+        - "laalin. (1)" -> "la alin. (1)"
+        - "lalit. a)" -> "la lit. a)"
+        - "lacap. II" -> "la cap. II"
+        - "prevederilorart. 10" -> "prevederilor art. 10"
+        - "(1)se" -> "(1) se"
+        - "a)șib)" -> "a) și b)"
+        """
+        # Pattern pentru referințe legislative fără spații
+        # Caută cuvinte urmate direct de "alin.", "lit.", "cap.", "art.", etc.
+        patterns = [
+            (r'(\w)(alin\.)', r'\1 \2'),      # "laalin." -> "la alin."
+            (r'(\w)(lit\.)', r'\1 \2'),       # "lalit." -> "la lit."
+            (r'(\w)(cap\.)', r'\1 \2'),       # "lacap." -> "la cap."
+            (r'(\w)(art\.)', r'\1 \2'),       # "laart." -> "la art."
+            (r'(\w)(pct\.)', r'\1 \2'),       # "lapct." -> "la pct."
+            (r'(\w)(sec[țt]\.)', r'\1 \2'),   # "lasecț." -> "la secț."
+            (r'(\w)(tit\.)', r'\1 \2'),       # "latit." -> "la tit."
+            (r'(\w)(par\.)', r'\1 \2'),       # "lapar." -> "la par."
+            # Adaugă spații după paranteze/litere urmate de cuvinte
+            (r'\)([a-zăâîșțA-ZĂÂÎȘȚ])', r') \1'),  # "(1)se" -> "(1) se", "b)șic)" -> "b) șic)"
+            (r'(și|sau|de|cu|la|în|pentru|ca|dacă)([a-z]\))', r'\1 \2'),  # "șib)" -> "și b)", "saue)" -> "sau e)"
+        ]
+        
+        normalized = text
+        for pattern, replacement in patterns:
+            normalized = re.sub(pattern, replacement, normalized)
+        
+        return normalized
+    
+    def _extract_article_content_from_html(self, art_ttl_element) -> str:
+        """
+        Extrage și formatează conținutul articolului direct din HTML.
+        Procesează S_ALN (alineate) și S_LIT (litere) cu formatare Markdown.
+        
+        Formatare:
+        - Alineate: **(1)** pe linie separată, conținut pe linia următoare
+        - Litere (enumeration): **a)**, **b)**, **c)** indentate cu 2 spații
+        - Litere (referință): "lit. a)-c)" rămâne în text, NU se formatează
+        """
+        lines = []
+        
+        # Găsește S_ART_BDY (corpul articolului)
+        art_bdy = None
+        for sibling in art_ttl_element.find_next_siblings():
+            if 'S_ART_BDY' in sibling.get('class', []):
+                art_bdy = sibling
+                break
+            # Oprește-te dacă găsești un nou articol
+            if 'S_ART_TTL' in sibling.get('class', []):
+                break
+        
+        if not art_bdy:
+            return ""
+        
+        # Verifică dacă există structură cu PARAGRAFE + PUNCTE (caz special)
+        par_elements = art_bdy.find_all(class_=re.compile(r'S_PAR'), recursive=False)
+        has_par_with_pct = False
+        
+        if par_elements:
+            for par in par_elements:
+                if par.find_all(class_=re.compile(r'S_PCT')):
+                    has_par_with_pct = True
+                    break
+        
+        if has_par_with_pct:
+            # CAZ SPECIAL: Paragraf introductiv + puncte
+            for par in par_elements:
+                # Text introductiv (direct children doar)
+                intro_texts = []
+                for child in par.children:
+                    if isinstance(child, str):
+                        text = child.strip()
+                        if text:
+                            intro_texts.append(text)
+                
+                if intro_texts:
+                    lines.append(' '.join(intro_texts))
+                    lines.append("")
+                
+                # Procesează punctele
+                puncte = par.find_all(class_=re.compile(r'S_PCT'))
+                for pct in puncte:
+                    ttl = pct.find(class_=re.compile(r'S_PCT_TTL'))
+                    bdy = pct.find(class_=re.compile(r'S_PCT_BDY'))
+                    
+                    if ttl and bdy:
+                        numero = ttl.get_text(strip=True)
+                        text = self._normalize_legislative_text(bdy.get_text(strip=True))
+                        if numero and text:
+                            lines.append(f"{numero} {text}")
+            
+            return "\n".join(lines)
+        
+        # Procesează ALINEATE (S_ALN) - structură normală
+        alineate = art_bdy.find_all(class_=re.compile(r'S_ALN'), recursive=False)
+        
+        if alineate:
+            for aln in alineate:
+                # Găsește S_ALN_TTL (numărul alineatului) și S_ALN_BDY (conținutul)
+                ttl = aln.find(class_=re.compile(r'S_ALN_TTL'))
+                bdy = aln.find(class_=re.compile(r'S_ALN_BDY'))
+                
+                if ttl and bdy:
+                    numero = ttl.get_text(strip=True)  # Ex: "(1)"
+                    
+                    # Formatează numărul alineatului pe linie separată
+                    lines.append(f"**{numero}**")
+                    lines.append("")
+                    
+                    # Verifică dacă alineatul conține LITERE (S_LIT)
+                    litere = bdy.find_all(class_=re.compile(r'S_LIT'), recursive=False)
+                    
+                    if litere:
+                        # Extrage textul introductiv (înainte de litere)
+                        intro_texts = []
+                        for child in bdy.children:
+                            if isinstance(child, str):
+                                text = child.strip()
+                                if text:
+                                    intro_texts.append(self._normalize_legislative_text(text))
+                            elif child.name and 'S_LIT' not in child.get('class', []):
+                                # Text din alte elemente (nu S_LIT)
+                                text = self._normalize_legislative_text(child.get_text(strip=True))
+                                if text:
+                                    intro_texts.append(text)
+                        
+                        if intro_texts:
+                            lines.append(' '.join(intro_texts))
+                            lines.append("")
+                        
+                        # Procesează fiecare literă
+                        for lit in litere:
+                            lit_ttl = lit.find(class_=re.compile(r'S_LIT_TTL'))
+                            lit_bdy = lit.find(class_=re.compile(r'S_LIT_BDY'))
+                            
+                            if lit_ttl and lit_bdy:
+                                litera = lit_ttl.get_text(strip=True)  # Ex: "a)"
+                                text = self._normalize_legislative_text(lit_bdy.get_text(strip=True))
+                                
+                                if litera and text:
+                                    # Formatează litera cu indentare
+                                    lines.append(f"  **{litera}** {text}")
+                    else:
+                        # Alineat simplu, fără litere
+                        text = self._normalize_legislative_text(bdy.get_text(strip=True))
+                        if text:
+                            lines.append(text)
+                    
+                    lines.append("")
+            
+            return "\n".join(lines)
+        
+        # FALLBACK: Paragraf simplu (S_PAR) - poate conține litere (S_LIT)
+        paragrafe = art_bdy.find_all(class_=re.compile(r'S_PAR'))
+        if paragrafe:
+            for par in paragrafe:
+                # Verifică dacă paragraful conține LITERE (S_LIT)
+                litere = par.find_all(class_=re.compile(r'S_LIT'), recursive=False)
+                
+                if litere:
+                    # Paragraf cu enumerare de litere
+                    # Extrage textul introductiv (înainte de litere)
+                    intro_texts = []
+                    for child in par.children:
+                        if isinstance(child, str):
+                            text = child.strip()
+                            if text:
+                                intro_texts.append(self._normalize_legislative_text(text))
+                        elif child.name and 'S_LIT' not in child.get('class', []):
+                            # Text din alte elemente (nu S_LIT)
+                            text = self._normalize_legislative_text(child.get_text(strip=True))
+                            if text:
+                                intro_texts.append(text)
+                    
+                    if intro_texts:
+                        lines.append(' '.join(intro_texts))
+                        lines.append("")
+                    
+                    # Procesează fiecare literă
+                    for lit in litere:
+                        lit_ttl = lit.find(class_=re.compile(r'S_LIT_TTL'))
+                        lit_bdy = lit.find(class_=re.compile(r'S_LIT_BDY'))
+                        
+                        if lit_ttl and lit_bdy:
+                            litera = lit_ttl.get_text(strip=True)  # Ex: "a)"
+                            text = self._normalize_legislative_text(lit_bdy.get_text(strip=True))
+                            
+                            if litera and text:
+                                # Formatează litera cu indentare (2 spații)
+                                lines.append(f"  **{litera}** {text}")
+                else:
+                    # Paragraf simplu fără litere
+                    text = self._normalize_legislative_text(par.get_text(strip=True))
+                    if text:
+                        lines.append(text)
+                
+                lines.append("")
+            
+            return "\n".join(lines)
+        
+        # ULTIMUL FALLBACK: Tot textul
+        text = self._normalize_legislative_text(art_bdy.get_text(separator='\n', strip=True))
+        return text if text else ""
+    
     def save_to_rezultate(self, df: pd.DataFrame, filename_prefix: str = 'parsed', 
                           metrics: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
         """
@@ -887,9 +1436,18 @@ class HybridLegislativeParser:
             saved_files['csv'] = csv_path
             logger.info(f"✅ CSV salvat în: {csv_path}")
             
-            # Salvează Markdown
+            # Salvează Markdown folosind metoda nouă (direct din HTML)
             md_path = os.path.join('rezultate', f'{filename}_{timestamp}.md')
-            md_content = self._generate_markdown(df)
+            
+            # Folosește noua metodă _generate_markdown_from_html() dacă avem HTML salvat
+            if self.last_soup and self.last_metadata:
+                logger.info("📝 Generez Markdown direct din HTML...")
+                md_content = self._generate_markdown_from_html(self.last_soup, self.last_metadata)
+            else:
+                # Fallback la metoda veche (din DataFrame)
+                logger.warning("⚠️ Nu am HTML salvat, folosesc metoda veche (din DataFrame)")
+                md_content = self._generate_markdown(df)
+            
             with open(md_path, 'w', encoding='utf-8') as f:
                 f.write(md_content)
             saved_files['markdown'] = md_path
