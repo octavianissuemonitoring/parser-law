@@ -68,13 +68,18 @@ async def root():
         "description": settings.api_description,
         "docs": "/docs",
         "health": "/health",
+        "endpoints": {
+            "acte": "/api/v1/acte",
+            "articole": "/api/v1/articole",
+        },
     }
 
 
-# Import and include routers (will be added later)
-# from app.api.routes import acte, articole
-# app.include_router(acte.router, prefix="/api/v1", tags=["Acte Legislative"])
-# app.include_router(articole.router, prefix="/api/v1", tags=["Articole"])
+# Import and include routers
+from app.api.routes import acte_router, articole_router
+
+app.include_router(acte_router, prefix="/api/v1")
+app.include_router(articole_router, prefix="/api/v1")
 
 
 if __name__ == "__main__":
