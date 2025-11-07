@@ -325,8 +325,8 @@ class LegislationScraper:
                     nr = first_row.get('nr_act', '')
                     data = first_row.get('data_an', '')
                     print(f"   📄 {first_row['tip_act']} nr. {nr}/{data}")
-                if first_row.get('denumire'):
-                    print(f"   📝 {first_row['denumire'][:80]}...")
+                if first_row.get('titlu_act'):
+                    print(f"   📝 {first_row['titlu_act'][:80]}...")
             
             return True
             

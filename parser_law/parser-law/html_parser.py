@@ -175,7 +175,7 @@ def convert_month_to_number(luna: str) -> str:
 
 def extract_basic_metadata(soup: BeautifulSoup) -> Dict[str, Any]:
     """Extrage metadata de bază din document"""
-    metadata = {'Tip_Act': None, 'Nr': None, 'An': None, 'Data': None, 'Denumire': None}
+    metadata = {'Tip_Act': None, 'Nr': None, 'An': None, 'Data': None, 'Titlu_Act': None}
     
     # Extrage tip act, număr și dată din S_DEN
     s_den = soup.find(class_='S_DEN')
@@ -202,7 +202,7 @@ def extract_basic_metadata(soup: BeautifulSoup) -> Dict[str, Any]:
     # Extrage denumirea din S_HDR
     s_hdr = soup.find(class_='S_HDR')
     if s_hdr:
-        metadata['Denumire'] = s_hdr.get_text(strip=True)
+        metadata['Titlu_Act'] = s_hdr.get_text(strip=True)
     
     return metadata
 
@@ -262,7 +262,7 @@ def extract_article_from_element(element, context: Dict[str, Any], metadata: Dic
         'Nr': metadata.get('Nr'),
         'An': metadata.get('An'),
         'Data': metadata.get('Data'),
-        'Denumire': metadata.get('Denumire'),
+        'Titlu_Act': metadata.get('Titlu_Act'),
     }
 
 

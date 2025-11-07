@@ -113,7 +113,7 @@ class HybridLegislativeParser:
                 'tip_act': 'Tip_Act',
                 'nr_act': 'Nr',
                 'data_act': 'Data_An',
-                'denumire': 'Denumire',
+                'titlu_act': 'Denumire',
                 'mof_nr': 'Mof_nr',
                 'mof_data': 'Mof_Data'
             }
@@ -170,15 +170,15 @@ class HybridLegislativeParser:
     
     def _extract_html_metadata(self, soup: BeautifulSoup) -> Dict[str, Any]:
         """
-        Extrage metadata completă din HTML (tip_act, nr_act, data_act, denumire, emitent, MOF).
+        Extrage metadata completă din HTML (tip_act, nr_act, data_act, titlu_act, emitent_act, MOF).
         Această metodă extrage TOATĂ metadata necesară pentru generare Markdown.
         """
         metadata: Dict[str, Any] = {
             'tip_act': None,
             'nr_act': None,
             'data_act': None,
-            'denumire': None,
-            'emitent': None,
+            'titlu_act': None,
+            'emitent_act': None,
             'mof_nr': None,
             'mof_data': None
         }
@@ -245,12 +245,12 @@ class HybridLegislativeParser:
         # Extrage denumirea din S_HDR
         s_hdr = soup.find('span', class_='S_HDR')
         if s_hdr:
-            metadata['denumire'] = s_hdr.get_text(strip=True)
+            metadata['titlu_act'] = s_hdr.get_text(strip=True)
         
         # Extrage emitentul din S_EMT_BDY
         s_emt_bdy = soup.find('span', class_='S_EMT_BDY')
         if s_emt_bdy:
-            metadata['emitent'] = s_emt_bdy.get_text(strip=True)
+            metadata['emitent_act'] = s_emt_bdy.get_text(strip=True)
         
         # Extrage info MOF din S_PUB_BDY
         s_pub_bdy = soup.find('span', class_='S_PUB_BDY')
@@ -338,11 +338,11 @@ class HybridLegislativeParser:
             'Tip_Act': 'tip_act',
             'Nr': 'nr_act', 
             'Data_An': 'data_act',
-            'Denumire': 'denumire',
+            'Denumire': 'titlu_act',
             'Mof_nr': 'mof_nr',
             'Mof_Data': 'mof_data',
             'Mof_An': 'mof_an',
-            'Emitent': 'emitent',
+            'Emitent': 'emitent_act',
             'Titlu_Nr': 'titlu_nr',
             'Titlu_Denumire': 'titlu_denumire',
             'Capitol_Nr': 'capitol_nr',
@@ -463,7 +463,7 @@ class HybridLegislativeParser:
                 df[col] = df[col].apply(lambda x: int_to_roman(x) if pd.notna(x) and x != 0 else '')
         
         # Reordonează coloanele: metadata la început, apoi restul
-        metadata_cols = ['tip_act', 'nr_act', 'data_act', 'an_act', 'denumire', 'emitent', 'mof_nr', 'mof_data', 'mof_an']
+        metadata_cols = ['tip_act', 'nr_act', 'data_act', 'an_act', 'titlu_act', 'emitent_act', 'mof_nr', 'mof_data', 'mof_an']
         first_cols = [col for col in metadata_cols if col in df.columns]
         
         # Coloane structurale
@@ -666,8 +666,8 @@ class HybridLegislativeParser:
         lines.append(f"nr_act: {first_row.get('nr_act', 'N/A')}")
         lines.append(f"data_act: {first_row.get('data_act', 'N/A')}")
         lines.append(f"an_act: {first_row.get('an_act', 'N/A')}")
-        lines.append(f"emitent: {first_row.get('emitent', 'N/A')}")
-        lines.append(f'denumire: "{first_row.get("denumire", "N/A")}"')
+        lines.append(f"emitent_act: {first_row.get('emitent_act', 'N/A')}")
+        lines.append(f'titlu_act: "{first_row.get("titlu_act", "N/A")}"')
         lines.append(f"mof_nr: {first_row.get('mof_nr', 'N/A')}")
         lines.append(f"mof_data: {first_row.get('mof_data', 'N/A')}")
         lines.append(f"mof_an: {first_row.get('mof_an', 'N/A')}")
@@ -686,15 +686,15 @@ class HybridLegislativeParser:
             lines.append(f"# {tip_act} din {data_act}")
         lines.append("")
         
-        if first_row.get('emitent'):
-            lines.append(f"**Emitent:** {first_row.get('emitent')}")
+        if first_row.get('emitent_act'):
+            lines.append(f"**Emitent:** {first_row.get('emitent_act')}")
         if first_row.get('mof_nr'):
             lines.append(f"**Publicat în:** Monitorul Oficial nr. {first_row.get('mof_nr')} din {first_row.get('mof_data')}")
         lines.append("")
         
-        if first_row.get('denumire'):
-            lines.append("## Denumire")
-            lines.append(first_row.get('denumire'))
+        if first_row.get('titlu_act'):
+            lines.append("## Titlu Act")
+            lines.append(first_row.get('titlu_act'))
             lines.append("")
         
         lines.append("---")
@@ -854,7 +854,7 @@ class HybridLegislativeParser:
             lines.append(f"tip_act: {row.get('tip_act', 'N/A')}")
             lines.append(f"nr_act: {row.get('nr_act', 'N/A')}")
             lines.append(f"an_act: {row.get('an_act', 'N/A')}")
-            lines.append(f"denumire_act: {row.get('denumire', 'N/A')}")
+            lines.append(f"titlu_act: {row.get('titlu_act', 'N/A')}")
             lines.append("```")
             lines.append("")
             
@@ -901,8 +901,8 @@ class HybridLegislativeParser:
                 an_act = match.group(1)
         lines.append(f"an_act: {an_act}")
         
-        lines.append(f"emitent: {metadata.get('emitent', 'N/A')}")
-        lines.append(f"denumire: {metadata.get('denumire', 'N/A')}")
+        lines.append(f"emitent_act: {metadata.get('emitent_act', 'N/A')}")
+        lines.append(f"titlu_act: {metadata.get('titlu_act', 'N/A')}")
         lines.append(f"mof_nr: {metadata.get('mof_nr', 'N/A')}")
         lines.append(f"mof_data: {metadata.get('mof_data', 'N/A')}")
         
@@ -923,14 +923,14 @@ class HybridLegislativeParser:
         # === HEADER ===
         lines.append(f"# {metadata.get('tip_act', 'ACT LEGISLATIV')} nr. {metadata.get('nr_act', 'N/A')} din {metadata.get('data_act', 'N/A')}")
         lines.append("")
-        if metadata.get('emitent'):
-            lines.append(f"**Emitent:** {metadata['emitent']}")
+        if metadata.get('emitent_act'):
+            lines.append(f"**Emitent:** {metadata['emitent_act']}")
             lines.append("")
         if metadata.get('mof_nr') and metadata.get('mof_data'):
             lines.append(f"**Publicat în:** Monitorul Oficial nr. {metadata['mof_nr']} din {metadata['mof_data']}")
             lines.append("")
-        if metadata.get('denumire'):
-            lines.append(f"**Denumire:** {metadata['denumire']}")
+        if metadata.get('titlu_act'):
+            lines.append(f"**Titlu:** {metadata['titlu_act']}")
             lines.append("")
         
         # === INDEX IERARHIC ===
@@ -1153,7 +1153,7 @@ class HybridLegislativeParser:
                     if match_an:
                         an_act = match_an.group(1)
                 lines.append(f"an_act: {an_act}")
-                lines.append(f"denumire_act: {metadata.get('denumire', 'N/A')}")
+                lines.append(f"titlu_act: {metadata.get('titlu_act', 'N/A')}")
                 lines.append("```")
                 lines.append("")
                 
