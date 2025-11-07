@@ -872,7 +872,7 @@ class HybridLegislativeParser:
         
         return "\n".join(lines)
     
-    def _generate_markdown_from_html(self, soup: BeautifulSoup, metadata: Dict[str, Any]) -> str:
+    def _generate_markdown_from_html(self, soup: BeautifulSoup, metadata: Dict[str, Any], df: Optional[pd.DataFrame] = None) -> str:
         """
         Generează Markdown direct din HTML, fără conversie prin DataFrame.
         Această metodă înlocuiește _generate_markdown() pentru o procesare mai directă și precisă.
@@ -880,6 +880,7 @@ class HybridLegislativeParser:
         Args:
             soup: BeautifulSoup object cu HTML-ul parsat
             metadata: Metadata extrasă (tip_act, nr_act, data_act, etc.)
+            df: DataFrame cu articolele (opțional, pentru a include issue în INDEX)
         
         Returns:
             String cu conținutul Markdown complet
@@ -936,8 +937,8 @@ class HybridLegislativeParser:
         lines.append("## INDEX")
         lines.append("")
         
-        # Construiește INDEX din structura HTML
-        index_lines = self._build_index_from_html(soup)
+        # Construiește INDEX din structura HTML (cu issue din DataFrame)
+        index_lines = self._build_index_from_html(soup, df)
         lines.extend(index_lines)
         lines.append("")
         
@@ -951,10 +952,15 @@ class HybridLegislativeParser:
         
         return "\n".join(lines)
     
-    def _build_index_from_html(self, soup: BeautifulSoup) -> List[str]:
+    def _build_index_from_html(self, soup: BeautifulSoup, df: Optional[pd.DataFrame] = None) -> List[str]:
         """
         Construiește INDEX-ul ierarhic direct din HTML.
         Detectează TITLURI, CAPITOLE, SECȚIUNI, SUBSECȚIUNI și articole.
+        Include și textul issue din DataFrame pentru fiecare articol.
+        
+        Args:
+            soup: BeautifulSoup object cu HTML-ul
+            df: DataFrame cu articolele (opțional, pentru a include issue)
         """
         lines = []
         
@@ -962,6 +968,30 @@ class HybridLegislativeParser:
         current_titlu = None
         current_capitol = None
         current_sectiune = None
+        
+        # Creează dicționar pentru lookup rapid issue by article number
+        issue_map = {}
+        if df is not None and 'issue' in df.columns:
+            # Caută coloana cu numărul articolului
+            nr_col = None
+            for col in ['Articol_Nr', 'nr_articol', 'Articol', 'articol']:
+                if col in df.columns:
+                    nr_col = col
+                    break
+            
+            if nr_col:
+                for _, row in df.iterrows():
+                    art_nr = row.get(nr_col)
+                    issue_text = row.get('issue', '')
+                    
+                    # Convertește numărul articolului la string
+                    if pd.notna(art_nr):
+                        try:
+                            art_nr_str = str(int(art_nr))
+                            if pd.notna(issue_text) and issue_text and issue_text != '*[TODO - adaugă descriere scurtă]*':
+                                issue_map[art_nr_str] = str(issue_text)
+                        except (ValueError, TypeError):
+                            pass
         
         # Găsește toate elementele de structură în ordine
         for element in soup.find_all(class_=re.compile(r'S_(TTL|CAP|SEC|ART)_TTL')):
@@ -1016,7 +1046,12 @@ class HybridLegislativeParser:
                 match = re.search(r'articol(ul)?\s+(\d+)', text, re.I)
                 if match:
                     art_nr = match.group(2)
-                    lines.append(f"- [Articolul {art_nr}](#articolul-{art_nr})")
+                    
+                    # Construiește linia INDEX cu issue dacă există
+                    if art_nr in issue_map:
+                        lines.append(f"- [Articolul {art_nr}](#articolul-{art_nr}) - {issue_map[art_nr]}")
+                    else:
+                        lines.append(f"- [Articolul {art_nr}](#articolul-{art_nr})")
         
         return lines
     
@@ -1403,7 +1438,7 @@ class HybridLegislativeParser:
             # Folosește noua metodă _generate_markdown_from_html() dacă avem HTML salvat
             if self.last_soup and self.last_metadata:
                 logger.info("📝 Generez Markdown direct din HTML...")
-                md_content = self._generate_markdown_from_html(self.last_soup, self.last_metadata)
+                md_content = self._generate_markdown_from_html(self.last_soup, self.last_metadata, df)
             else:
                 # Fallback la metoda veche (din DataFrame)
                 logger.warning("⚠️ Nu am HTML salvat, folosesc metoda veche (din DataFrame)")
