@@ -8,7 +8,7 @@ export BACKUP_DIR="/opt/parser-law-backups"
 export LOG_DIR="/var/log/parser-law"
 
 # Database configuration
-export DB_NAME="legislatie_db"
+export DB_NAME="monitoring_platform"
 export DB_USER="legislatie_user"
 export DB_SCHEMA="legislatie"
 
