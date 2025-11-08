@@ -1,11 +1,53 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
 
-# Project specific
-mo_partea_i_pdfs/
-*.pdf
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing (exclude test files except main test file)
+check_*.py
+debug_*.py
+inspect_*.py
+demo_*.py
+test_format_*.py
+test_split.py
+test_confidence.txt
+test_printable.txt
+verify_result.py
+
+# Results și date temporare
+rezultate/
 *.csv
+*.md
+scraper_scheduler.log
+
+# Environment files
+.env
+.env.*
+
+# Temporary files
 *.tmp
-pagina*_debug.png
+*.bak
+*.log
+*.xlsx~
+*.csv~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Other git repos
+parser-legislatie/
