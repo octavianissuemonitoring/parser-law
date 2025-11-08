@@ -167,7 +167,7 @@ UNION ALL
 SELECT 
     'articol' AS tip,
     a.id,
-    'Art. ' || a.articol_nr || ' din ' || al.tip_act || ' ' || al.numar AS identificator,
+    'Art. ' || a.articol_nr || ' din ' || al.tip_act || ' ' || al.nr_act AS identificator,
     a.ai_status,
     a.ai_processed_at,
     a.ai_error
@@ -180,7 +180,7 @@ UNION ALL
 SELECT 
     'anexa' AS tip,
     an.id,
-    'Anexa ' || COALESCE(an.anexa_nr, an.ordine::text) || ' din ' || al.tip_act || ' ' || al.numar AS identificator,
+    'Anexa ' || COALESCE(an.anexa_nr, an.ordine::text) || ' din ' || al.tip_act || ' ' || al.nr_act AS identificator,
     an.ai_status,
     an.ai_processed_at,
     an.ai_error
@@ -198,9 +198,9 @@ CREATE OR REPLACE VIEW legislatie.v_pending_export AS
 SELECT 
     al.id,
     al.tip_act,
-    al.numar,
-    al.data_an,
-    al.denumire,
+    al.nr_act,
+    al.an_act,
+    al.titlu_act,
     al.metadate,
     al.ai_status,
     al.export_status,
@@ -213,7 +213,7 @@ LEFT JOIN legislatie.anexe an ON al.id = an.act_id
 LEFT JOIN legislatie.acte_issues ai ON al.id = ai.act_id
 WHERE al.ai_status = 'completed' 
   AND al.export_status IN ('pending', 'error')
-GROUP BY al.id, al.tip_act, al.numar, al.data_an, al.denumire, al.metadate, al.ai_status, al.export_status
+GROUP BY al.id, al.tip_act, al.nr_act, al.an_act, al.titlu_act, al.metadate, al.ai_status, al.export_status
 ORDER BY al.data_creare DESC;
 
 COMMENT ON VIEW legislatie.v_pending_export IS 
@@ -224,9 +224,9 @@ CREATE OR REPLACE VIEW legislatie.v_export_package AS
 SELECT 
     al.id AS act_id,
     al.tip_act,
-    al.numar,
-    al.data_an,
-    al.denumire,
+    al.nr_act,
+    al.an_act,
+    al.titlu_act,
     al.metadate AS act_metadate,
     al.issue_monitoring_id AS act_im_id,
     
@@ -302,7 +302,7 @@ FROM legislatie.acte_legislative al
 LEFT JOIN legislatie.articole a ON al.id = a.act_id
 LEFT JOIN legislatie.anexe an ON al.id = an.act_id
 WHERE al.ai_status = 'completed'
-GROUP BY al.id, al.tip_act, al.numar, al.data_an, al.denumire, al.metadate, al.issue_monitoring_id;
+GROUP BY al.id, al.tip_act, al.nr_act, al.an_act, al.titlu_act, al.metadate, al.issue_monitoring_id;
 
 COMMENT ON VIEW legislatie.v_export_package IS 
     'Pachet complet pentru export către Issue Monitoring (act + articole + anexe + issues)';
