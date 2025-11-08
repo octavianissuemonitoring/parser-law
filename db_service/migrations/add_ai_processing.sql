@@ -155,7 +155,7 @@ CREATE OR REPLACE VIEW legislatie.v_pending_ai_processing AS
 SELECT 
     'act' AS tip,
     id,
-    tip_act || ' ' || numar || '/' || data_an AS identificator,
+    tip_act || ' ' || nr_act || '/' || an_act AS identificator,
     ai_status,
     ai_processed_at,
     ai_error
