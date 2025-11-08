@@ -27,11 +27,15 @@ test_confidence.txt
 test_printable.txt
 verify_result.py
 
-# Results (opțional - decomentează dacă vrei să ignore rezultatele)
-# rezultate/*.csv
-# rezultate/*.json
-# rezultate/*.xlsx
-# rezultate/*.txt
+# Results și date temporare
+rezultate/
+*.csv
+*.md
+scraper_scheduler.log
+
+# Environment files
+.env
+.env.*
 
 # Temporary files
 *.tmp

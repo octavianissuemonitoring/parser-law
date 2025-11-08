@@ -428,12 +428,27 @@ class HybridLegislativeParser:
             df['art_nr'] = pd.to_numeric(df['art_nr'], errors='coerce').fillna(0).astype(int)
             df = df.sort_values('art_nr').reset_index(drop=True)
         
+        # FIX: Eliminăm rândurile cu text_articol GOL (articole fără conținut - probabil issue markers)
+        # Acestea apar când parser-ul confundă numere de issue cu numere de articole
+        if 'text_articol' in df.columns and 'articol_label' in df.columns:
+            initial_count = len(df)
+            # Păstrăm doar rândurile cu conținut real (> 5 caractere după strip)
+            df = df[df['text_articol'].astype(str).str.strip().str.len() > 5].copy()
+            removed_count = initial_count - len(df)
+            if removed_count > 0:
+                logger.info(f"🧹 Eliminat {removed_count} rânduri goale (fără conținut text_articol)")
+            df = df.reset_index(drop=True)
+        
         # Eliminăm duplicatele - păstrăm intrarea cu cel mai mult conținut în text_articol
         if 'art_nr' in df.columns and 'text_articol' in df.columns:
+            initial_count = len(df)
             df['_text_length'] = df['text_articol'].astype(str).str.len()
             df = df.sort_values(['art_nr', '_text_length'], ascending=[True, False])
             df = df.drop_duplicates(subset=['art_nr'], keep='first')
             df = df.drop(columns=['_text_length'])
+            removed_count = initial_count - len(df)
+            if removed_count > 0:
+                logger.info(f"🧹 Eliminat {removed_count} duplicate (același art_nr)")
             df = df.reset_index(drop=True)
         
         # Curățăm text_articol - eliminăm label-ul din text dacă există

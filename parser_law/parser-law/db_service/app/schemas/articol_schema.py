@@ -2,8 +2,11 @@
 Pydantic schemas for Articol.
 """
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field, ConfigDict
+
+if TYPE_CHECKING:
+    from app.schemas.act_schema import ActLegislativResponse
 
 
 # Base schema - common fields
@@ -81,13 +84,11 @@ class ArticolResponse(ArticolBase):
     updated_at: datetime
 
 
-# Schema with Act info included
-class ArticolWithAct(ArticolResponse):
-    """Schema for Articol with Act info."""
-    
-    from app.schemas.act_schema import ActLegislativResponse
-    
-    act: ActLegislativResponse
+# # Schema with Act info included - DISABLED due to circular import
+# class ArticolWithAct(ArticolResponse):
+#     """Schema for Articol with Act info."""
+#     
+#     act: "ActLegislativResponse"
 
 
 # Schema for batch update

@@ -19,6 +19,7 @@ class ActLegislativ(Base):
     """
     
     __tablename__ = "acte_legislative"
+    __table_args__ = {"schema": "legislatie"}
     
     # Primary Key
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -47,6 +48,15 @@ class ActLegislativ(Base):
         Numeric(3, 2), 
         nullable=True,
         comment="Parsing confidence score (0.00-1.00)"
+    )
+    
+    # Versioning
+    versiune: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1",
+        comment="Version number (incremented on updates)"
     )
     
     # Timestamps

@@ -24,6 +24,7 @@ class Articol(Base):
     """
     
     __tablename__ = "articole"
+    __table_args__ = {"schema": "legislatie"}
     
     # Primary Key
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -31,7 +32,7 @@ class Articol(Base):
     # Foreign Key to ActLegislativ
     act_id: Mapped[int] = mapped_column(
         Integer,
-        ForeignKey("acte_legislative.id", ondelete="CASCADE"),
+        ForeignKey("legislatie.acte_legislative.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )

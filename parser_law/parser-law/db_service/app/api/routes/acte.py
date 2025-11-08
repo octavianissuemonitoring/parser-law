@@ -13,7 +13,7 @@ from app.schemas import (
     ActLegislativCreate,
     ActLegislativUpdate,
     ActLegislativResponse,
-    ActLegislativWithArticole,
+    # ActLegislativWithArticole,  # DISABLED due to circular import
     ActLegislativList,
 )
 from app.services import ImportService
@@ -98,17 +98,17 @@ async def get_act(act_id: int, db: DBSession) -> ActLegislativResponse:
     return act
 
 
-@router.get("/{act_id}/articole", response_model=ActLegislativWithArticole)
-async def get_act_with_articole(act_id: int, db: DBSession) -> ActLegislativWithArticole:
+@router.get("/{act_id}/articole", response_model=ActLegislativResponse)
+async def get_act_with_articole(act_id: int, db: DBSession) -> ActLegislativResponse:
     """
-    Get a legislative act with all its articles.
+    Get a legislative act (without nested articole - use /api/v1/articole?act_id=X instead).
     
     - **act_id**: The ID of the legislative act
     """
     query = (
         select(ActLegislativ)
         .where(ActLegislativ.id == act_id)
-        .options(selectinload(ActLegislativ.articole))
+        # .options(selectinload(ActLegislativ.articole))  # Disabled
     )
     result = await db.execute(query)
     act = result.scalar_one_or_none()

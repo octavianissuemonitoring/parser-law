@@ -55,13 +55,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Initialize database - create tables if they don't exist."""
-    async with engine.begin() as conn:
-        # Create schema if not exists
-        await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {settings.db_schema}")
-        
-        # Create tables
-        await conn.run_sync(Base.metadata.create_all)
+    """Initialize database - schema creation via Alembic migrations."""
+    # Note: Schema and tables are created via Alembic migrations
+    # Run: alembic upgrade head
+    pass
 
 
 async def close_db() -> None:

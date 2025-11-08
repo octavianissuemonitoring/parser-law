@@ -2,8 +2,11 @@
 Pydantic schemas for Act Legislativ.
 """
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field, ConfigDict
+
+if TYPE_CHECKING:
+    from app.schemas.articol_schema import ArticolResponse
 
 
 # Base schema - common fields
@@ -62,13 +65,11 @@ class ActLegislativResponse(ActLegislativBase):
     articole_count: Optional[int] = Field(None, description="Number of articles")
 
 
-# Schema with articole included
-class ActLegislativWithArticole(ActLegislativResponse):
-    """Schema for Act Legislativ with articole."""
-    
-    from app.schemas.articol_schema import ArticolResponse
-    
-    articole: list[ArticolResponse] = Field(default_factory=list)
+# # Schema with articole included - DISABLED due to circular import
+# class ActLegislativWithArticole(ActLegislativResponse):
+#     """Schema for Act Legislativ with articole."""
+#     
+#     articole: list["ArticolResponse"] = Field(default_factory=list)
 
 
 # Schema for list/search responses
@@ -80,3 +81,4 @@ class ActLegislativList(BaseModel):
     page: int
     size: int
     pages: int
+

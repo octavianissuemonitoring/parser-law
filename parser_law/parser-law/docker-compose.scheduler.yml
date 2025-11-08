@@ -1,0 +1,65 @@
+# Docker Compose pentru Scraper Scheduler
+version: '3.8'
+
+services:
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    container_name: legislatie_scheduler
+    restart: unless-stopped
+    
+    environment:
+      # General
+      - SCRAPER_ENABLED=true
+      - SCRAPER_SCHEDULE_TYPE=daily_weekdays
+      
+      # Daily schedule (Monday-Thursday at 14:00)
+      - SCRAPER_HOUR=14
+      - SCRAPER_DAYS=1-4
+      
+      # Scraper settings
+      - SCRAPER_DELAY=2.0
+      - SCRAPER_LINKS_FILE=/app/linkuri_legislatie.txt
+      - SCRAPER_OUTPUT_DIR=/app/rezultate
+      
+      # Auto-import
+      - SCRAPER_AUTO_IMPORT=true
+      - SCRAPER_API_URL=http://legislatie_api:8000
+    
+    volumes:
+      # Mount links file
+      - ./linkuri_legislatie.txt:/app/linkuri_legislatie.txt:ro
+      
+      # Mount output directory (shared with API)
+      - ./rezultate:/app/rezultate
+      
+      # Mount logs
+      - ./logs/scheduler:/app/logs
+    
+    networks:
+      - legislatie_network
+    
+    depends_on:
+      - api
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  legislatie_network:
+    external: true
+    name: db_service_default
+
+# Note: Make sure to create the network first if it doesn't exist:
+# docker network create db_service_default

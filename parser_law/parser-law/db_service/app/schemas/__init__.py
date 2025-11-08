@@ -4,7 +4,7 @@ from app.schemas.act_schema import (
     ActLegislativCreate,
     ActLegislativUpdate,
     ActLegislativResponse,
-    ActLegislativWithArticole,
+    # ActLegislativWithArticole,  # DISABLED due to circular import
     ActLegislativList,
 )
 from app.schemas.articol_schema import (
@@ -13,7 +13,7 @@ from app.schemas.articol_schema import (
     ArticolUpdate,
     ArticolLabelsUpdate,
     ArticolResponse,
-    ArticolWithAct,
+    # ArticolWithAct,  # DISABLED due to circular import
     ArticolBatchUpdate,
     ArticolList,
     ArticolSearchResult,
@@ -24,14 +24,14 @@ __all__ = [
     "ActLegislativCreate",
     "ActLegislativUpdate",
     "ActLegislativResponse",
-    "ActLegislativWithArticole",
+    # "ActLegislativWithArticole",  # DISABLED
     "ActLegislativList",
     "ArticolBase",
     "ArticolCreate",
     "ArticolUpdate",
     "ArticolLabelsUpdate",
     "ArticolResponse",
-    "ArticolWithAct",
+    # "ArticolWithAct",  # DISABLED
     "ArticolBatchUpdate",
     "ArticolList",
     "ArticolSearchResult",

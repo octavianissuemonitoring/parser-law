@@ -1,140 +1,160 @@
-# Database Service - API pentru Acte Legislative
+# Legislative Acts API - FastAPI Microservice
 
-Microserviciu FastAPI pentru gestionarea actelor legislative în PostgreSQL.
+REST API microservice pentru gestionarea actelor legislative românești și articolelor acestora.
 
-## Structura Proiectului
+## 🚀 Features
+
+- **FastAPI** - Modern, fast web framework cu validare automată
+- **SQLAlchemy 2.0** - ORM async pentru PostgreSQL
+- **Alembic** - Database migrations
+- **Pydantic v2** - Validare date cu type hints
+- **PostgreSQL 15** - Database cu suport pentru full-text search
+- **Docker** - Containerizare completă (API + PostgreSQL + pgAdmin)
+- **Async/Await** - Non-blocking I/O pentru performanță
+- **Import Service** - Import automat din CSV/Markdown
+
+## 📁 Project Structure
 
 ```
 db_service/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPI app
-│   ├── config.py            # Settings
-│   ├── database.py          # DB connection
-│   ├── models/              # SQLAlchemy models
-│   ├── schemas/             # Pydantic schemas
-│   ├── api/                 # API routes
-│   └── services/            # Business logic
-├── alembic/                 # Database migrations
-├── tests/                   # Tests
-├── docker-compose.yml
-├── Dockerfile
-└── requirements.txt
+│   ├── api/
+│   │   ├── deps.py              # Dependencies (session, pagination)
+│   │   └── routes/
+│   │       ├── acte.py          # CRUD pentru acte legislative
+│   │       └── articole.py      # CRUD pentru articole
+│   ├── models/
+│   │   ├── act_legislativ.py   # Model ActLegislativ
+│   │   └── articol.py           # Model Articol
+│   ├── schemas/
+│   │   ├── act_schema.py        # Pydantic schemas pentru Act
+│   │   └── articol_schema.py    # Pydantic schemas pentru Articol
+│   ├── services/
+│   │   └── import_service.py    # Import CSV/MD → Database
+│   ├── config.py                # Settings cu Pydantic
+│   ├── database.py              # AsyncSession setup
+│   └── main.py                  # FastAPI app
+├── alembic/
+│   ├── versions/                # Database migrations
+│   └── env.py                   # Alembic config (async)
+├── scripts/
+│   └── run_import.py            # CLI pentru import
+├── docker-compose.yml           # Docker services
+├── Dockerfile                   # API container
+├── requirements.txt             # Python dependencies
+├── alembic.ini                  # Alembic config
+├── DEPLOYMENT.md                # Deployment guide
+└── README.md                    # This file
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Setup Environment
-
-```bash
-# Creează virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Instalează dependencies
-pip install -r requirements.txt
-```
-
-### 2. Start Database
+### 1. Start PostgreSQL
 
 ```bash
-# Start PostgreSQL cu Docker
+cd db_service
 docker-compose up -d postgres
-
-# Rulează migrations
-alembic upgrade head
 ```
 
-### 3. Run API
+### 2. Run Migrations
 
 ```bash
-# Development
-uvicorn app.main:app --reload --port 8000
-
-# Production
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+python -m alembic upgrade head
 ```
 
-### 4. Access API
-
-- API: http://localhost:8000
-- Docs: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-- Health: http://localhost:8000/health
-
-## Development
-
-### Run Tests
+### 3. Import Data
 
 ```bash
-pytest tests/ -v
+python scripts/run_import.py --dir ../rezultate
 ```
 
-### Create Migration
+### 4. Start API
 
 ```bash
-alembic revision --autogenerate -m "Description"
-alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Import Data
+### 5. Access API
+
+- **Swagger**: http://localhost:8000/docs
+- **Health**: http://localhost:8000/health
+
+## 📚 Full Documentation
+
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for complete setup, deployment, and troubleshooting guide.
+
+## 🔌 API Endpoints Summary
+
+### Acts: `/api/v1/acte`
+- List, Get, Create, Update, Delete
+- **Import from CSV**: `POST /api/v1/acte/import`
+- Statistics: `GET /api/v1/acte/{id}/stats`
+
+### Articles: `/api/v1/articole`
+- List, Get, Create, Update, Delete
+- **Update LLM labels**: `PATCH /api/v1/articole/{id}/labels`
+- **Bulk updates**: `POST /api/v1/articole/batch-update-labels`
+- **Search**: `GET /api/v1/articole/search/text`
+
+## 📊 Database Schema
+
+- **`acte_legislative`**: Act metadata (17 fields)
+- **`articole`**: Articles (20 fields) with FK to acts
+- **Relationship**: One-to-Many with CASCADE delete
+- **Indexes**: Optimized for common queries
+
+## 🔧 Technology Stack
+
+- **Python 3.11+**
+- **FastAPI 0.104** - Web framework
+- **SQLAlchemy 2.0** - Async ORM
+- **Alembic 1.17** - Migrations
+- **Pydantic 2.5** - Validation
+- **PostgreSQL 15** - Database
+- **asyncpg 0.30** - Async PostgreSQL driver
+- **Docker** - Containerization
+
+## 📦 Installation
 
 ```bash
-python -m app.services.import_service --dir ../rezultate/
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your settings
 ```
 
-## API Endpoints
+## 🐳 Docker Deployment
 
-### Acte Legislative
+```bash
+# Start all services
+docker-compose up -d
 
-- `POST /api/v1/acte/import` - Import act din CSV/MD
-- `GET /api/v1/acte` - List acte (paginated)
-- `GET /api/v1/acte/{id}` - Get act by ID
-- `GET /api/v1/acte/{id}/articole` - Get articole pentru act
-- `PUT /api/v1/acte/{id}` - Update act
-- `DELETE /api/v1/acte/{id}` - Delete act
+# Run migrations
+docker-compose exec api alembic upgrade head
 
-### Articole
+# Import data
+docker-compose exec api python scripts/run_import.py
 
-- `GET /api/v1/articole` - List articole (paginated)
-- `GET /api/v1/articole/{id}` - Get articol by ID
-- `PUT /api/v1/articole/{id}/labels` - Update issue/explicatie
-- `POST /api/v1/articole/batch-update` - Batch update labels
-- `GET /api/v1/articole/search` - Search articole
-
-### Health & Info
-
-- `GET /health` - Health check
-- `GET /api/v1/info` - API info
-
-## Environment Variables
-
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/monitoring_platform
-DB_SCHEMA=legislatie
-
-# API
-API_HOST=0.0.0.0
-API_PORT=8000
-API_RELOAD=true
-
-# CORS
-CORS_ORIGINS=["http://localhost:3000"]
-
-# Logging
-LOG_LEVEL=INFO
+# View logs
+docker-compose logs -f api
 ```
 
-## Tech Stack
+## 🧪 Testing
 
-- **Framework**: FastAPI 0.104+
-- **ORM**: SQLAlchemy 2.0+
-- **Migrations**: Alembic
-- **Database**: PostgreSQL 15+
-- **Validation**: Pydantic v2
-- **Testing**: pytest + httpx
+Open Swagger UI: http://localhost:8000/docs
 
-## License
+Try these endpoints:
+1. `POST /api/v1/acte/import` - Import CSV files
+2. `GET /api/v1/acte` - List acts
+3. `GET /api/v1/acte/{id}/stats` - View statistics
+4. `GET /api/v1/articole/search/text?q=energie` - Search articles
+
+## 📝 License
 
 MIT
+
+---
+
+**Built with ❤️ using FastAPI, SQLAlchemy, and PostgreSQL**

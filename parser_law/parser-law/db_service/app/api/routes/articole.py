@@ -14,7 +14,7 @@ from app.schemas import (
     ArticolUpdate,
     ArticolLabelsUpdate,
     ArticolResponse,
-    ArticolWithAct,
+    # ArticolWithAct,  # DISABLED due to circular import
     ArticolList,
     ArticolBatchUpdate,
     ArticolSearchResult,
@@ -107,17 +107,17 @@ async def get_articol(articol_id: int, db: DBSession) -> ArticolResponse:
     return articol
 
 
-@router.get("/{articol_id}/with-act", response_model=ArticolWithAct)
-async def get_articol_with_act(articol_id: int, db: DBSession) -> ArticolWithAct:
+@router.get("/{articol_id}/with-act", response_model=ArticolResponse)
+async def get_articol_with_act(articol_id: int, db: DBSession) -> ArticolResponse:
     """
-    Get an article with its parent legislative act.
+    Get an article (without nested act - use GET /api/v1/acte/{act_id} for the parent act).
     
     - **articol_id**: The ID of the article
     """
     query = (
         select(Articol)
         .where(Articol.id == articol_id)
-        .options(selectinload(Articol.act))
+        # .options(selectinload(Articol.act))  # Disabled
     )
     result = await db.execute(query)
     articol = result.scalar_one_or_none()
