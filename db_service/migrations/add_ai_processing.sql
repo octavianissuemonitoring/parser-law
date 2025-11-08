@@ -214,7 +214,7 @@ LEFT JOIN legislatie.acte_issues ai ON al.id = ai.act_id
 WHERE al.ai_status = 'completed' 
   AND al.export_status IN ('pending', 'error')
 GROUP BY al.id, al.tip_act, al.nr_act, al.an_act, al.titlu_act, al.metadate, al.ai_status, al.export_status
-ORDER BY al.data_creare DESC;
+ORDER BY al.created_at DESC;
 
 COMMENT ON VIEW legislatie.v_pending_export IS 
     'Acte procesate de AI care așteaptă export către Issue Monitoring';
