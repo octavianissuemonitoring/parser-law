@@ -232,7 +232,7 @@ SELECT
     
     -- Articole cu metadate și issues
     COALESCE(
-        json_agg(DISTINCT jsonb_build_object(
+        json_agg(jsonb_build_object(
             'id', a.id,
             'articol_nr', a.articol_nr,
             'ordine', a.ordine,
@@ -257,7 +257,7 @@ SELECT
     
     -- Anexe cu metadate și issues
     COALESCE(
-        json_agg(DISTINCT jsonb_build_object(
+        json_agg(jsonb_build_object(
             'id', an.id,
             'anexa_nr', an.anexa_nr,
             'ordine', an.ordine,
@@ -284,7 +284,7 @@ SELECT
     -- Issues la nivel de act
     COALESCE(
         (
-            SELECT json_agg(DISTINCT jsonb_build_object(
+            SELECT json_agg(jsonb_build_object(
                 'id', i.id,
                 'denumire', i.denumire,
                 'descriere', i.descriere,
