@@ -50,6 +50,52 @@ class ActLegislativ(Base):
         comment="Parsing confidence score (0.00-1.00)"
     )
     
+    # AI Processing Status
+    ai_status: Mapped[Optional[str]] = mapped_column(
+        String(20),
+        nullable=True,
+        default="pending",
+        comment="AI processing status: pending, processing, completed, error"
+    )
+    ai_processed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when AI processing completed"
+    )
+    ai_error: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="AI processing error message if any"
+    )
+    metadate: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="AI-generated summary/metadata"
+    )
+    
+    # Export Status to Issue Monitoring
+    export_status: Mapped[Optional[str]] = mapped_column(
+        String(20),
+        nullable=True,
+        default="pending",
+        comment="Export status: pending, exported, error"
+    )
+    export_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when exported to Issue Monitoring"
+    )
+    export_error: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Export error message if any"
+    )
+    issue_monitoring_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="ID in Issue Monitoring database after export"
+    )
+    
     # Versioning
     versiune: Mapped[int] = mapped_column(
         Integer,
@@ -77,6 +123,20 @@ class ActLegislativ(Base):
         "Articol",
         back_populates="act",
         cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    
+    anexe: Mapped[List["Anexa"]] = relationship(
+        "Anexa",
+        back_populates="act",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    
+    issues: Mapped[List["Issue"]] = relationship(
+        "Issue",
+        secondary="legislatie.acte_issues",
+        back_populates="acte",
         lazy="selectin"
     )
     

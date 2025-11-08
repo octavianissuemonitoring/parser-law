@@ -2,7 +2,7 @@
 SQLAlchemy model for Articol (Article).
 """
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -11,6 +11,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.act_legislativ import ActLegislativ
+    from app.models.issue import Issue
 
 
 class Articol(Base):
@@ -59,7 +60,37 @@ class Articol(Base):
     
     # LLM Generated Labels (editabile)
     issue: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    explicatie: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    explicatie: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Deprecated: use metadate
+    metadate: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="AI-generated summary/explanation (replaces explicatie)"
+    )
+    
+    # AI Processing Status
+    ai_status: Mapped[Optional[str]] = mapped_column(
+        String(20),
+        nullable=True,
+        default="pending",
+        comment="AI processing status: pending, processing, completed, error"
+    )
+    ai_processed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when AI processing completed"
+    )
+    ai_error: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="AI processing error message if any"
+    )
+    
+    # Export to Issue Monitoring
+    issue_monitoring_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="ID in Issue Monitoring database after export"
+    )
     
     # Metadata
     ordine: Mapped[Optional[int]] = mapped_column(
@@ -84,6 +115,13 @@ class Articol(Base):
     # Relationships
     act: Mapped["ActLegislativ"] = relationship(
         "ActLegislativ",
+        back_populates="articole",
+        lazy="selectin"
+    )
+    
+    issues: Mapped[List["Issue"]] = relationship(
+        "Issue",
+        secondary="legislatie.articole_issues",
         back_populates="articole",
         lazy="selectin"
     )
