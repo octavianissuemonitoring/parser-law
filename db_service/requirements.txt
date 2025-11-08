@@ -12,6 +12,10 @@ alembic==1.12.1
 psycopg[binary]==3.1.13
 asyncpg==0.29.0  # For async PostgreSQL
 
+# AI Processing
+openai==1.54.0  # OpenAI API for GPT models
+anthropic==0.39.0  # Anthropic API for Claude models
+
 # Validation & Serialization
 python-dateutil==2.8.2
 python-multipart==0.0.6  # For file uploads
