@@ -248,9 +248,18 @@ class ScraperScheduler:
         )
         
         # Print next run time
-        job = self.scheduler.get_job('scraping_job')
-        next_run = job.next_run_time
-        logger.info(f"⏰ Next scheduled run: {next_run}")
+        try:
+            jobs = self.scheduler.get_jobs()
+            if jobs:
+                logger.info(f"⏰ Scheduled jobs: {len(jobs)}")
+                for job in jobs:
+                    if hasattr(job, 'next_run_time'):
+                        logger.info(f"   - {job.id}: next run at {job.next_run_time}")
+                    else:
+                        logger.info(f"   - {job.id}: scheduled")
+        except Exception as e:
+            logger.warning(f"Could not retrieve job schedule info: {e}")
+        
         logger.info(f"🔄 Scheduler started. Waiting for scheduled time...")
         logger.info("   Press Ctrl+C to stop")
         logger.info("="*70)
