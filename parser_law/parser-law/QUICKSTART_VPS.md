@@ -12,13 +12,19 @@ curl -fsSL https://raw.githubusercontent.com/octavianissuemonitoring/parser-law/
 # Configurează environment
 cd /opt/parser-law/db_service
 cp .env.production .env
-nano .env  # Editează password-ul
+nano .env  # Editează DB_PASSWORD și alte valori sensibile
 
-# Start servicii
+# Start servicii (IMPORTANT: trebuie să fii în directorul db_service)
 docker compose up -d
+
+# Verificare servicii pornite
+docker compose ps
 
 # Creare tabele
 docker exec -i legislatie_postgres psql -U legislatie_user -d monitoring_platform < create_tables.sql
+
+# Verificare tabele
+docker exec legislatie_postgres psql -U legislatie_user -d monitoring_platform -c "\dt legislatie.*"
 ```
 
 ## Opțiunea 2: Manual Setup
@@ -47,12 +53,19 @@ sudo certbot --nginx -d your-domain.com
 ## ✅ Verificare
 
 ```bash
+# Verificare containere
+cd /opt/parser-law/db_service
+docker compose ps
+
 # Test API
-curl http://your-domain.com/health
-curl http://your-domain.com/docs
+curl http://localhost:8000/health
+curl http://localhost:8000/docs
 
 # Vezi logs
 docker compose logs -f api
+
+# Check database
+docker exec legislatie_postgres psql -U legislatie_user -d monitoring_platform -c "SELECT COUNT(*) FROM legislatie.acte_legislative;"
 ```
 
 ## 📚 Documentație Completă

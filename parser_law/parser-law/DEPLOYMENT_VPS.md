@@ -1,5 +1,63 @@
 # Deployment pe VPS - Parser Law
 
+## ⚠️ IMPORTANT - Citește Întâi!
+
+### Erori Comune și Soluții
+
+#### ❌ **Eroare: "no configuration file provided: not found"**
+**Cauză:** Ai rulat `docker compose up -d` din directorul greșit. Fișierul `docker-compose.yml` este în subdirectorul `db_service/`, nu în root.
+
+**Soluție:**
+```bash
+# Opțiunea 1: Intră în directorul corect
+cd /opt/parser-law/db_service
+docker compose up -d
+
+# Opțiunea 2: Specifică calea
+cd /opt/parser-law
+docker compose -f db_service/docker-compose.yml up -d
+```
+
+#### ❌ **Eroare: "permission denied" la Docker**
+**Cauză:** User-ul nu este în grupul Docker sau nu ai făcut re-login după adăugare.
+
+**Soluție:**
+```bash
+sudo usermod -aG docker $USER
+exit  # Reconectează SSH
+```
+
+#### ❌ **Eroare: "port is already allocated"**
+**Cauză:** Portul 8000 sau 5432 este deja folosit.
+
+**Soluție:**
+```bash
+# Verifică ce folosește portul
+sudo netstat -tulpn | grep :8000
+sudo netstat -tulpn | grep :5432
+
+# Oprește serviciul vechi
+docker compose down
+```
+
+#### ❌ **Eroare: "Failed to connect to database"**
+**Cauză:** PostgreSQL nu a pornit complet sau parola este greșită în `.env`.
+
+**Soluție:**
+```bash
+# Verifică status PostgreSQL
+docker compose ps
+docker compose logs postgres
+
+# Verifică parola în .env
+cat .env | grep DB_PASSWORD
+
+# Așteaptă ca PostgreSQL să fie healthy
+docker compose logs postgres | grep "ready to accept connections"
+```
+
+---
+
 ## 📋 Cerințe VPS
 
 ### Minime
@@ -110,30 +168,68 @@ LOG_LEVEL=INFO
 ## 🐳 Pas 3: Start Servicii Docker
 
 ### 3.1. Start Database + API
+
+**IMPORTANT:** Fișierul `docker-compose.yml` se află în subdirectorul `db_service/`. Trebuie să intri în acest director sau să specifici calea explicită.
+
 ```bash
-cd db_service
+# Intră în directorul db_service
+cd /opt/parser-law/db_service
+
+# Verifică existența fișierului .env
+ls -la .env
+
+# Dacă nu există, creează-l din .env.production
+cp .env.production .env
+
+# Editează parolele (OBLIGATORIU pentru producție!)
+nano .env
+
+# Pornește serviciile
 docker compose up -d
+```
+
+**Alternativ - din directorul principal:**
+```bash
+cd /opt/parser-law
+docker compose -f db_service/docker-compose.yml up -d
 ```
 
 ### 3.2. Verificare servicii
 ```bash
+# Din directorul db_service
 docker compose ps
 docker compose logs -f api
+
+# Sau din directorul principal
+docker compose -f db_service/docker-compose.yml ps
+docker compose -f db_service/docker-compose.yml logs -f api
 ```
 
 ### 3.3. Creare tabele database
 ```bash
-# Opțiunea 1: SQL direct
+# IMPORTANT: Asigură-te că ești în directorul db_service
+
+# Opțiunea 1: SQL direct (recomandat)
 docker exec -i legislatie_postgres psql -U legislatie_user -d monitoring_platform < create_tables.sql
 
 # Opțiunea 2: Alembic migrations
 docker compose exec api alembic upgrade head
+
+# Verificare tabele create
+docker exec legislatie_postgres psql -U legislatie_user -d monitoring_platform -c "\dt legislatie.*"
 ```
 
 ### 3.4. Start Scheduler (opțional)
 ```bash
-cd ..
+# Înapoi în directorul principal
+cd /opt/parser-law
+
+# Pornește scheduler-ul
 docker compose -f docker-compose.scheduler.yml up -d
+
+# Verificare
+docker compose -f docker-compose.scheduler.yml ps
+docker compose -f docker-compose.scheduler.yml logs -f
 ```
 
 ---
