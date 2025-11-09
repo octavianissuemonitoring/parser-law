@@ -73,12 +73,13 @@ class Issue(Base):
     )
     
     # Relationships
-    acte: Mapped[List["ActLegislativ"]] = relationship(
-        "ActLegislativ",
-        secondary="legislatie.acte_issues",
-        back_populates="issues",
-        lazy="selectin"
-    )
+    # TODO: Uncomment when junction tables are created via migration
+    # acte: Mapped[List["ActLegislativ"]] = relationship(
+    #     "ActLegislativ",
+    #     secondary="legislatie.acte_issues",
+    #     back_populates="issues",
+    #     lazy="selectin"
+    # )
     
     # TODO: Uncomment when junction tables are created via migration
     # articole: Mapped[List["Articol"]] = relationship(
