@@ -648,8 +648,14 @@
             document.getElementById('index-container').innerHTML = '';
             
             try {
-                const response = await fetch(`${API_BASE}/acte/${actId}`);
-                const act = await response.json();
+                // Fetch act details
+                const actResponse = await fetch(`${API_BASE}/acte/${actId}`);
+                const act = await actResponse.json();
+                
+                // Fetch articles for this act
+                const articlesResponse = await fetch(`${API_BASE}/articole?act_id=${actId}&limit=1000`);
+                const articlesData = await articlesResponse.json();
+                act.articole = articlesData.items || articlesData;
                 
                 document.getElementById('index-loading').style.display = 'none';
                 
@@ -657,6 +663,7 @@
                 const structure = buildActStructure(act);
                 document.getElementById('index-container').innerHTML = structure;
             } catch (error) {
+                console.error('Error loading structure:', error);
                 document.getElementById('index-loading').style.display = 'none';
                 document.getElementById('index-container').innerHTML = '<div style="padding: 20px; color: red;">Eroare la încărcarea structurii</div>';
             }
@@ -665,7 +672,7 @@
         function buildActStructure(act) {
             let html = `
                 <h3>${act.titlu_act || 'Fără titlu'}</h3>
-                <p><strong>Nr:</strong> ${act.nr_act}/${act.an_act} | <strong>Tip:</strong> ${act.tip || 'N/A'}</p>
+                <p><strong>Nr:</strong> ${act.nr_act || 'N/A'}/${act.an_act || 'N/A'} | <strong>Tip:</strong> ${act.tip_act || 'N/A'}</p>
                 <div class="act-structure">
             `;
             
@@ -673,7 +680,7 @@
                 // Group by chapter if available
                 const chapters = {};
                 act.articole.forEach(art => {
-                    const chapter = art.titlu_articol || 'Articole';
+                    const chapter = art.capitol_denumire || 'Fără capitol';
                     if (!chapters[chapter]) chapters[chapter] = [];
                     chapters[chapter].push(art);
                 });
@@ -686,10 +693,11 @@
                     `;
                     
                     chapters[chapterName].forEach(art => {
+                        const preview = art.text_articol ? art.text_articol.substring(0, 100) + '...' : '';
                         html += `
-                            <li class="article-item" onclick="showArticleContent(${art.id})">
-                                <strong>Art. ${art.numar_articol}</strong>
-                                ${art.titlu_articol ? ` - ${art.titlu_articol}` : ''}
+                            <li class="article-item" onclick="showArticleContent(${art.id})" title="${preview}">
+                                <strong>${art.articol_label || 'Art. ' + art.articol_nr}</strong>
+                                ${preview ? ` - ${preview}` : ''}
                             </li>
                         `;
                     });
