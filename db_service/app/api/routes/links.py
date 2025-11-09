@@ -52,7 +52,7 @@ async def add_link(
     check_query = text("""
         SELECT COUNT(*) 
         FROM legislatie.acte_legislative 
-        WHERE link_legislatie = :url
+        WHERE url_legislatie = :url
     """)
     result = await db.execute(check_query, {"url": str(link_data.url)})
     existing_count = result.scalar()
@@ -90,11 +90,11 @@ async def get_links_stats(db: AsyncSession = Depends(get_db)) -> LinksStats:
     # Unique links with counts
     links_query = text("""
         SELECT 
-            link_legislatie as url,
+            url_legislatie as url,
             COUNT(*) as acts_count
         FROM legislatie.acte_legislative
-        WHERE link_legislatie IS NOT NULL
-        GROUP BY link_legislatie
+        WHERE url_legislatie IS NOT NULL
+        GROUP BY url_legislatie
         ORDER BY acts_count DESC
         LIMIT 10
     """)
@@ -134,11 +134,11 @@ async def get_links(
     # Get all unique links with counts
     query = text("""
         SELECT 
-            link_legislatie as url,
+            url_legislatie as url,
             COUNT(*) as acts_count
         FROM legislatie.acte_legislative
-        WHERE link_legislatie IS NOT NULL
-        GROUP BY link_legislatie
+        WHERE url_legislatie IS NOT NULL
+        GROUP BY url_legislatie
         ORDER BY acts_count DESC
         LIMIT :limit
     """)
