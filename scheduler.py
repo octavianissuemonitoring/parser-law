@@ -4,12 +4,15 @@
 """
 Scheduler pentru scraping automat al actelor legislative.
 Suportă configurare flexibilă prin variabile de mediu sau config file.
+
+NEW: Includes AI processing and export automation.
 """
 
 import os
 import sys
 import time
 import logging
+import asyncio
 from datetime import datetime
 from typing import Optional
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -63,6 +66,19 @@ class ScraperSchedulerConfig:
         
         # Cleanup settings
         self.auto_cleanup = os.getenv('SCRAPER_AUTO_CLEANUP', 'true').lower() == 'true'
+        
+        # AI Processing settings
+        self.ai_enabled = os.getenv('AI_PROCESSING_ENABLED', 'true').lower() == 'true'
+        self.ai_schedule = os.getenv('AI_PROCESSING_SCHEDULE', '*/30 * * * *')  # Every 30 minutes
+        self.ai_batch_size = int(os.getenv('AI_PROCESSING_BATCH_SIZE', '10'))
+        self.ai_batch_delay = float(os.getenv('AI_PROCESSING_DELAY', '1.0'))
+        
+        # Export settings
+        self.export_enabled = os.getenv('EXPORT_ENABLED', 'true').lower() == 'true'
+        self.export_schedule = os.getenv('EXPORT_SCHEDULE', '0 * * * *')  # Every hour
+        self.export_batch_size = int(os.getenv('EXPORT_BATCH_SIZE', '10'))
+        self.export_sync_enabled = os.getenv('EXPORT_SYNC_ENABLED', 'true').lower() == 'true'
+        self.export_sync_schedule = os.getenv('EXPORT_SYNC_SCHEDULE', '30 * * * *')  # Every hour at :30
     
     def get_cron_trigger(self) -> CronTrigger:
         """
@@ -216,6 +232,130 @@ class ScraperScheduler:
         except Exception as e:
             logger.error(f"❌ Cleanup error: {e}")
     
+    def run_ai_processing_job(self):
+        """
+        Job pentru procesare AI automată.
+        Procesează articolele pending cu AI pentru extragere issues.
+        """
+        try:
+            logger.info("="*70)
+            logger.info(f"🤖 Starting AI processing job at {datetime.now()}")
+            logger.info("="*70)
+            
+            # Import inside function to avoid circular imports
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'db_service'))
+            from app.services.ai_service import AIService
+            from app.database import async_sessionmaker
+            
+            async def process():
+                ai_service = AIService()
+                stats = await ai_service.process_pending_articole(
+                    limit=self.config.ai_batch_size,
+                    batch_delay=self.config.ai_batch_delay
+                )
+                return stats
+            
+            start_time = time.time()
+            stats = asyncio.run(process())
+            elapsed = time.time() - start_time
+            
+            logger.info(f"✅ AI processing completed in {elapsed:.2f} seconds")
+            logger.info(f"   ✅ Success: {stats['success']}")
+            logger.info(f"   ❌ Errors: {stats['error']}")
+            logger.info(f"   ⏭️  Skipped: {stats['skipped']}")
+            logger.info("="*70)
+            
+        except Exception as e:
+            logger.error(f"❌ Error in AI processing job: {e}", exc_info=True)
+            raise
+    
+    def run_export_job(self):
+        """
+        Job pentru export automat către Issue Monitoring.
+        Exportă actele procesate de AI.
+        """
+        try:
+            logger.info("="*70)
+            logger.info(f"📤 Starting export job at {datetime.now()}")
+            logger.info("="*70)
+            
+            # Import inside function
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'db_service'))
+            from app.services.export_service import ExportService
+            from app.database import async_sessionmaker
+            
+            async def export():
+                export_service = ExportService()
+                stats = await export_service.export_to_issue_monitoring(
+                    session=None,
+                    act_id=None,
+                    limit=self.config.export_batch_size
+                )
+                return stats
+            
+            start_time = time.time()
+            
+            # Need to create session properly
+            async def run_export():
+                from app.database import async_sessionmaker
+                async with async_sessionmaker() as session:
+                    export_service = ExportService()
+                    stats = await export_service.export_to_issue_monitoring(
+                        session=session,
+                        act_id=None,
+                        limit=self.config.export_batch_size
+                    )
+                    return stats
+            
+            stats = asyncio.run(run_export())
+            elapsed = time.time() - start_time
+            
+            logger.info(f"✅ Export completed in {elapsed:.2f} seconds")
+            logger.info(f"   ✅ Success: {stats['success']}")
+            logger.info(f"   ❌ Errors: {stats['error']}")
+            logger.info(f"   ⏭️  Skipped: {stats['skipped']}")
+            logger.info("="*70)
+            
+        except Exception as e:
+            logger.error(f"❌ Error in export job: {e}", exc_info=True)
+            raise
+    
+    def run_export_sync_job(self):
+        """
+        Job pentru sincronizare updates către Issue Monitoring.
+        Sincronizează articole/anexe noi pentru acte deja exportate.
+        """
+        try:
+            logger.info("="*70)
+            logger.info(f"🔄 Starting export sync job at {datetime.now()}")
+            logger.info("="*70)
+            
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'db_service'))
+            from app.services.export_service import ExportService
+            from app.database import async_sessionmaker
+            
+            async def run_sync():
+                async with async_sessionmaker() as session:
+                    export_service = ExportService()
+                    stats = await export_service.sync_updates(
+                        session=session,
+                        limit=50
+                    )
+                    return stats
+            
+            start_time = time.time()
+            stats = asyncio.run(run_sync())
+            elapsed = time.time() - start_time
+            
+            logger.info(f"✅ Sync completed in {elapsed:.2f} seconds")
+            logger.info(f"   ✅ Success: {stats['success']}")
+            logger.info(f"   ❌ Errors: {stats['error']}")
+            logger.info("="*70)
+            
+        except Exception as e:
+            logger.error(f"❌ Error in sync job: {e}", exc_info=True)
+            raise
+    
     def start(self):
         """Pornește scheduler-ul."""
         if not self.config.enabled:
@@ -233,6 +373,8 @@ class ScraperScheduler:
         logger.info(f"Auto-import: {self.config.auto_import}")
         if self.config.auto_import:
             logger.info(f"API URL: {self.config.api_url}")
+        logger.info(f"AI Processing: {self.config.ai_enabled}")
+        logger.info(f"Export: {self.config.export_enabled}")
         logger.info("="*70)
         
         # Add job to scheduler
@@ -246,6 +388,48 @@ class ScraperScheduler:
             coalesce=True,  # Combine missed runs into one
             max_instances=1  # Only one instance at a time
         )
+        
+        # Add AI processing job
+        if self.config.ai_enabled:
+            ai_trigger = CronTrigger.from_crontab(self.config.ai_schedule)
+            self.scheduler.add_job(
+                self.run_ai_processing_job,
+                trigger=ai_trigger,
+                id='ai_processing_job',
+                name='AI Processing',
+                misfire_grace_time=1800,  # 30 minutes grace
+                coalesce=True,
+                max_instances=1
+            )
+            logger.info(f"✅ AI processing job added (schedule: {self.config.ai_schedule})")
+        
+        # Add export job
+        if self.config.export_enabled:
+            export_trigger = CronTrigger.from_crontab(self.config.export_schedule)
+            self.scheduler.add_job(
+                self.run_export_job,
+                trigger=export_trigger,
+                id='export_job',
+                name='Export to Issue Monitoring',
+                misfire_grace_time=1800,
+                coalesce=True,
+                max_instances=1
+            )
+            logger.info(f"✅ Export job added (schedule: {self.config.export_schedule})")
+        
+        # Add export sync job
+        if self.config.export_enabled and self.config.export_sync_enabled:
+            sync_trigger = CronTrigger.from_crontab(self.config.export_sync_schedule)
+            self.scheduler.add_job(
+                self.run_export_sync_job,
+                trigger=sync_trigger,
+                id='export_sync_job',
+                name='Export Sync Updates',
+                misfire_grace_time=1800,
+                coalesce=True,
+                max_instances=1
+            )
+            logger.info(f"✅ Export sync job added (schedule: {self.config.export_sync_schedule})")
         
         # Print next run time
         try:
