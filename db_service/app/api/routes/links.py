@@ -63,9 +63,33 @@ async def add_link(
             detail=f"Link already exists with {existing_count} acts"
         )
     
-    # Link acknowledged - in production, trigger scraping here
+    # Insert placeholder act for this link (to track the source)
+    insert_query = text("""
+        INSERT INTO legislatie.acte_legislative 
+        (tip_act, titlu_act, url_legislatie, html_content, created_at, updated_at)
+        VALUES 
+        (:tip, :titlu, :url, :description, NOW(), NOW())
+        RETURNING id
+    """)
+    
+    title = link_data.description or f"Link to scrape: {str(link_data.url)}"
+    
+    insert_result = await db.execute(
+        insert_query,
+        {
+            "tip": "PENDING_SCRAPE",
+            "titlu": title,
+            "url": str(link_data.url),
+            "description": link_data.description
+        }
+    )
+    await db.commit()
+    
+    new_id = insert_result.scalar()
+    
     return {
         "message": "Link added successfully. Scraping will be triggered automatically.",
+        "id": new_id,
         "url": str(link_data.url),
         "description": link_data.description
     }
