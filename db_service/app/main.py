@@ -2,8 +2,10 @@
 FastAPI main application.
 """
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import init_db, close_db
@@ -66,6 +68,7 @@ async def root():
         "name": settings.api_title,
         "version": settings.api_version,
         "description": settings.api_description,
+        "web_ui": "/static/index.html",
         "docs": "/docs",
         "health": "/health",
         "endpoints": {
@@ -73,6 +76,7 @@ async def root():
             "articole": "/api/v1/articole",
             "ai_processing": "/api/v1/ai",
             "export": "/api/v1/export",
+            "links": "/api/v1/links",
         },
     }
 
@@ -81,11 +85,18 @@ async def root():
 from app.api.routes import acte_router, articole_router
 from app.api.routes.ai_processing import router as ai_router
 from app.api.routes.export import router as export_router
+from app.api.routes.links import router as links_router
 
 app.include_router(acte_router, prefix="/api/v1")
 app.include_router(articole_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
+app.include_router(links_router, prefix="/api/v1")
+
+# Mount static files (must be last to not override API routes)
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir), html=True), name="static")
 
 
 if __name__ == "__main__":
