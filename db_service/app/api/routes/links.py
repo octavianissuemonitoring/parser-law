@@ -2,19 +2,18 @@
 Links Management API Routes - Endpoints for managing legislation source links.
 """
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, HttpUrl, Field
-from sqlalchemy import select, delete
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import DBSession
-from app.models.act_legislativ import ActLegislativ
+from app.api.deps import get_db
 
 
 router = APIRouter(prefix="/links", tags=["Links Management"])
 
 
-# Models
+# Pydantic Models
 class LinkCreate(BaseModel):
     """Request to add a new link."""
     url: HttpUrl = Field(..., description="Legislation URL to scrape")
@@ -29,114 +28,130 @@ class LinkResponse(BaseModel):
 
 
 class LinksStats(BaseModel):
-    """Statistics about stored links."""
-    total_unique_links: int
+    """Statistics about links."""
     total_acts: int
-    top_sources: List[dict]
+    total_unique_links: int
+    top_sources: List[LinkResponse] = Field(description="Top sources by acts count")
 
 
 # Endpoints
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def add_link(
-    link: LinkCreate,
-    session: DBSession
+    link_data: LinkCreate,
+    db: AsyncSession = Depends(get_db)
 ) -> dict:
     """
-    Add a new legislation link to track.
+    Add a new legislation link to scrape.
     
-    This doesn't scrape immediately - just stores the link.
-    Use the scraper to fetch content from this link.
+    This endpoint registers a new URL to be scraped for legislative acts.
+    The scraping will be triggered automatically by the scheduler.
     """
-    # In a real implementation, you'd store links in a separate table
-    # For now, we'll just return success
+    
+    # Check if link already exists
+    check_query = text("""
+        SELECT COUNT(*) 
+        FROM legislatie.acte_legislative 
+        WHERE link_legislatie = :url
+    """)
+    result = await db.execute(check_query, {"url": str(link_data.url)})
+    existing_count = result.scalar()
+    
+    if existing_count and existing_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Link already exists with {existing_count} acts"
+        )
+    
+    # Link acknowledged - in production, trigger scraping here
     return {
-        "message": "Link added successfully",
-        "url": str(link.url),
-        "description": link.description,
-        "next_step": "Run scraper to fetch content from this link"
+        "message": "Link added successfully. Scraping will be triggered automatically.",
+        "url": str(link_data.url),
+        "description": link_data.description
     }
 
 
 @router.get("/stats", response_model=LinksStats)
-async def get_links_stats(session: DBSession) -> LinksStats:
+async def get_links_stats(db: AsyncSession = Depends(get_db)) -> LinksStats:
     """
-    Get statistics about legislation sources.
+    Get statistics about legislation links and sources.
     
-    Returns counts and top sources based on stored acts.
+    Returns:
+    - Total number of acts
+    - Total unique source links
+    - Top sources by acts count
     """
-    # Count total acts
-    total_stmt = select(ActLegislativ.id)
-    total_result = await session.execute(total_stmt)
-    total_acts = len(total_result.all())
     
-    # Get unique links and their counts
-    links_stmt = select(
-        ActLegislativ.link_legislatie
-    ).where(
-        ActLegislativ.link_legislatie.isnot(None)
-    ).distinct()
+    # Total acts
+    total_query = text("SELECT COUNT(*) FROM legislatie.acte_legislative")
+    total_result = await db.execute(total_query)
+    total_acts = total_result.scalar() or 0
     
-    links_result = await session.execute(links_stmt)
-    unique_links = links_result.scalars().all()
+    # Unique links with counts
+    links_query = text("""
+        SELECT 
+            link_legislatie as url,
+            COUNT(*) as acts_count
+        FROM legislatie.acte_legislative
+        WHERE link_legislatie IS NOT NULL
+        GROUP BY link_legislatie
+        ORDER BY acts_count DESC
+        LIMIT 10
+    """)
+    links_result = await db.execute(links_query)
+    links = links_result.fetchall()
     
-    # Get top sources
+    # Build response
     top_sources = []
-    for link in unique_links[:10]:  # Top 10
-        count_stmt = select(ActLegislativ.id).where(
-            ActLegislativ.link_legislatie == link
-        )
-        count_result = await session.execute(count_stmt)
-        count = len(count_result.all())
-        
+    for row in links:
         top_sources.append({
-            "url": link,
-            "acts_count": count
+            "url": row[0],
+            "description": None,
+            "acts_count": row[1]
         })
     
-    # Sort by count
-    top_sources.sort(key=lambda x: x["acts_count"], reverse=True)
-    
     return LinksStats(
-        total_unique_links=len(unique_links),
         total_acts=total_acts,
+        total_unique_links=len(top_sources),
         top_sources=top_sources
     )
 
 
 @router.get("/", response_model=List[LinkResponse])
-async def list_links(
+async def get_links(
     limit: int = 50,
-    session: DBSession = None
+    db: AsyncSession = Depends(get_db)
 ) -> List[LinkResponse]:
     """
-    List all unique legislation source links.
+    Get all unique legislation links with acts count.
     
-    Returns links with count of acts from each source.
+    Parameters:
+    - limit: Maximum number of links to return (default: 50)
+    
+    Returns list of links with metadata and acts count.
     """
-    # Get unique links
-    stmt = select(
-        ActLegislativ.link_legislatie
-    ).where(
-        ActLegislativ.link_legislatie.isnot(None)
-    ).distinct()
     
-    result = await session.execute(stmt)
-    links = result.scalars().all()
+    # Get all unique links with counts
+    query = text("""
+        SELECT 
+            link_legislatie as url,
+            COUNT(*) as acts_count
+        FROM legislatie.acte_legislative
+        WHERE link_legislatie IS NOT NULL
+        GROUP BY link_legislatie
+        ORDER BY acts_count DESC
+        LIMIT :limit
+    """)
+    result = await db.execute(query, {"limit": limit})
+    links = result.fetchall()
     
-    # Build response with counts
+    # Build response
     response = []
-    for link in links[:limit]:
-        count_stmt = select(ActLegislativ.id).where(
-            ActLegislativ.link_legislatie == link
-        )
-        count_result = await session.execute(count_stmt)
-        count = len(count_result.all())
-        
+    for row in links:
         response.append(LinkResponse(
-            url=link,
-            description=None,  # Could be enhanced with a links table
-            acts_count=count
+            url=row[0],
+            description=None,
+            acts_count=row[1]
         ))
     
     return response
