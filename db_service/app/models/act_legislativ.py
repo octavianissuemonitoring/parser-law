@@ -133,12 +133,13 @@ class ActLegislativ(Base):
         lazy="selectin"
     )
     
-    issues: Mapped[List["Issue"]] = relationship(
-        "Issue",
-        secondary="legislatie.acte_issues",
-        back_populates="acte",
-        lazy="selectin"
-    )
+    # TODO: Uncomment when acte_issues table is created via migration
+    # issues: Mapped[List["Issue"]] = relationship(
+    #     "Issue",
+    #     secondary="legislatie.acte_issues",
+    #     back_populates="acte",
+    #     lazy="selectin"
+    # )
     
     def __repr__(self) -> str:
         return f"<ActLegislativ(id={self.id}, tip={self.tip_act}, nr={self.nr_act}, an={self.an_act})>"

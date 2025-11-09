@@ -119,12 +119,13 @@ class Articol(Base):
         lazy="selectin"
     )
     
-    issues: Mapped[List["Issue"]] = relationship(
-        "Issue",
-        secondary="legislatie.articole_issues",
-        back_populates="articole",
-        lazy="selectin"
-    )
+    # TODO: Uncomment when articole_issues table is created via migration
+    # issues: Mapped[List["Issue"]] = relationship(
+    #     "Issue",
+    #     secondary="legislatie.articole_issues",
+    #     back_populates="articole",
+    #     lazy="selectin"
+    # )
     
     # Indexes for performance
     __table_args__ = (

@@ -80,19 +80,20 @@ class Issue(Base):
         lazy="selectin"
     )
     
-    articole: Mapped[List["Articol"]] = relationship(
-        "Articol",
-        secondary="legislatie.articole_issues",
-        back_populates="issues",
-        lazy="selectin"
-    )
+    # TODO: Uncomment when junction tables are created via migration
+    # articole: Mapped[List["Articol"]] = relationship(
+    #     "Articol",
+    #     secondary="legislatie.articole_issues",
+    #     back_populates="issues",
+    #     lazy="selectin"
+    # )
     
-    anexe: Mapped[List["Anexa"]] = relationship(
-        "Anexa",
-        secondary="legislatie.anexe_issues",
-        back_populates="issues",
-        lazy="selectin"
-    )
+    # anexe: Mapped[List["Anexa"]] = relationship(
+    #     "Anexa",
+    #     secondary="legislatie.anexe_issues",
+    #     back_populates="issues",
+    #     lazy="selectin"
+    # )
     
     def __repr__(self) -> str:
         return f"<Issue(id={self.id}, denumire='{self.denumire[:50]}', source={self.source})>"

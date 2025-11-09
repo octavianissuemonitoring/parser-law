@@ -111,12 +111,13 @@ class Anexa(Base):
         lazy="selectin"
     )
     
-    issues: Mapped[List["Issue"]] = relationship(
-        "Issue",
-        secondary="legislatie.anexe_issues",
-        back_populates="anexe",
-        lazy="selectin"
-    )
+    # TODO: Uncomment when anexe_issues table is created via migration
+    # issues: Mapped[List["Issue"]] = relationship(
+    #     "Issue",
+    #     secondary="legislatie.anexe_issues",
+    #     back_populates="anexe",
+    #     lazy="selectin"
+    # )
     
     def __repr__(self) -> str:
         return f"<Anexa(id={self.id}, act_id={self.act_id}, nr={self.anexa_nr}, ordine={self.ordine})>"
