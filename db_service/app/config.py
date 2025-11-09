@@ -45,6 +45,22 @@ class Settings(BaseSettings):
     # Import Settings
     import_batch_size: int = 100
     
+    # Security Settings
+    api_key: str = ""  # API key for protected endpoints (AI, Export)
+    api_key_header: str = "X-API-Key"
+    allowed_ips: list[str] = []  # Empty = allow all; specify IPs to whitelist
+    
+    # AI Service Settings
+    openai_api_key: str = ""
+    anthropic_api_key: str = ""
+    ai_provider: str = "openai"  # "openai" or "anthropic"
+    ai_model: str = "gpt-4o"  # Model to use
+    ai_rate_limit_delay: float = 1.0  # Seconds between API calls
+    
+    # Issue Monitoring Integration
+    issue_monitoring_api_url: str = "https://api.issuemonitoring.ro/v1"
+    issue_monitoring_api_key: str = ""
+    
     @property
     def async_database_url(self) -> str:
         """Convert psycopg URL to asyncpg URL."""

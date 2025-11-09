@@ -71,15 +71,21 @@ async def root():
         "endpoints": {
             "acte": "/api/v1/acte",
             "articole": "/api/v1/articole",
+            "ai_processing": "/api/v1/ai",
+            "export": "/api/v1/export",
         },
     }
 
 
 # Import and include routers
 from app.api.routes import acte_router, articole_router
+from app.api.routes.ai_processing import router as ai_router
+from app.api.routes.export import router as export_router
 
 app.include_router(acte_router, prefix="/api/v1")
 app.include_router(articole_router, prefix="/api/v1")
+app.include_router(ai_router, prefix="/api/v1")
+app.include_router(export_router, prefix="/api/v1")
 
 
 if __name__ == "__main__":
