@@ -579,8 +579,9 @@
             document.getElementById('links-list').innerHTML = '';
             
             try {
-                const response = await fetch(`${API_BASE}/links/`);
-                const links = await response.json();
+                const response = await fetch(`${API_BASE}/links/?limit=100`);
+                const data = await response.json();
+                const links = data.items || data; // Support both formats
                 
                 document.getElementById('links-loading').style.display = 'none';
                 
@@ -592,13 +593,34 @@
                 links.forEach(link => {
                     const li = document.createElement('li');
                     li.className = 'link-item';
+                    
+                    // Status badge with color
+                    let statusBadge = '';
+                    let statusColor = '#6c757d';
+                    if (link.status === 'pending_scraping') {
+                        statusBadge = '⏳ Pending';
+                        statusColor = '#ffc107';
+                    } else if (link.status === 'processing') {
+                        statusBadge = '⚙️ Processing...';
+                        statusColor = '#17a2b8';
+                    } else if (link.status === 'completed') {
+                        statusBadge = '✅ Completed';
+                        statusColor = '#28a745';
+                    } else if (link.status === 'failed') {
+                        statusBadge = '❌ Failed';
+                        statusColor = '#dc3545';
+                    }
+                    
                     li.innerHTML = `
                         <div>
                             <a href="${link.url}" target="_blank" class="link-url">${link.url}</a>
-                            ${link.description ? `<p style="margin-top: 5px; color: #6c757d; font-size: 0.9em;">${link.description}</p>` : ''}
+                            <div style="margin-top: 5px; display: flex; gap: 10px; align-items: center;">
+                                <span style="background: ${statusColor}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.85em;">${statusBadge}</span>
+                                ${link.acte_count > 0 ? `<span class="badge badge-count">${link.acte_count} acte</span>` : ''}
+                            </div>
+                            ${link.error_message ? `<p style="margin-top: 5px; color: #dc3545; font-size: 0.85em;">Error: ${link.error_message}</p>` : ''}
                         </div>
                         <div style="display: flex; gap: 10px; align-items: center;">
-                            <span class="badge badge-count">${link.acts_count} acte</span>
                             <button class="btn btn-secondary btn-sm" onclick="processLink('${link.url}')">⚙️ Procesează</button>
                         </div>
                     `;
