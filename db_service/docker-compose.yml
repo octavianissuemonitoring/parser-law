@@ -41,7 +41,7 @@ services:
     volumes:
       - ./app:/app/app
       - ./alembic:/app/alembic
-      - ../rezultate:/data/rezultate:ro  # Mount rezultate pentru import
+      - ../rezultate:/app/rezultate  # Mount rezultate pentru import (read-write, shared with scheduler)
     depends_on:
       postgres:
         condition: service_healthy

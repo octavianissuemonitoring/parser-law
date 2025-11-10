@@ -19,7 +19,7 @@ from app.services.diff_service import ArticleDiffService
 class ImportService:
     """Service for importing legislative acts and articles from CSV/MD files."""
     
-    def __init__(self, rezultate_dir: str = "../rezultate"):
+    def __init__(self, rezultate_dir: str = "/app/rezultate"):
         """
         Initialize import service.
         
@@ -498,7 +498,7 @@ class ImportService:
             print(f"   ⚠️  Cleanup warning: {e}")
 
 
-async def run_import(rezultate_dir: str = "../rezultate") -> Dict[str, any]:
+async def run_import(rezultate_dir: str = "/app/rezultate") -> Dict[str, any]:
     """
     Run import from command line or script.
     

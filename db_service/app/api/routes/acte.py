@@ -247,7 +247,7 @@ async def get_act_stats(act_id: int, db: DBSession) -> dict:
 @router.post("/import", status_code=status.HTTP_200_OK)
 async def import_from_csv(
     db: DBSession,
-    rezultate_dir: str = Query("../rezultate", description="Path to rezultate directory"),
+    rezultate_dir: str = Query("/app/rezultate", description="Path to rezultate directory"),
 ) -> dict:
     """
     Import legislative acts and articles from CSV files in rezultate directory.
