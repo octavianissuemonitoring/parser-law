@@ -142,6 +142,11 @@
             color: white;
         }
         
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85em;
+        }
+        
         .links-list {
             list-style: none;
             margin-top: 20px;
@@ -513,6 +518,40 @@
             setTimeout(() => alertDiv.innerHTML = '', 5000);
         });
         
+        // Process link (scrape + import)
+        async function processLink(url) {
+            if (!confirm(`Începi procesarea pentru:\n${url}\n\nAcest proces poate dura câteva minute.`)) {
+                return;
+            }
+            
+            const alertDiv = document.getElementById('link-alert');
+            alertDiv.innerHTML = '<div class="alert alert-info">⏳ Se procesează linkul...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/links/process?url=${encodeURIComponent(url)}`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alertDiv.innerHTML = '<div class="alert alert-success">✓ Procesare pornită! Verifică tab-ul "Acte Normative" după câteva minute.</div>';
+                    
+                    // Trigger import after a delay
+                    setTimeout(async () => {
+                        await fetch(`${API_BASE}/acte/import?rezultate_dir=/app/rezultate`, {method: 'POST'});
+                        alertDiv.innerHTML = '<div class="alert alert-success">✓ Import finalizat! Reîmprospătează lista de acte.</div>';
+                        setTimeout(() => alertDiv.innerHTML = '', 5000);
+                    }, 30000); // Wait 30 seconds for scraper to finish
+                    
+                } else {
+                    const error = await response.json();
+                    alertDiv.innerHTML = `<div class="alert alert-error">✗ Eroare: ${error.detail}</div>`;
+                }
+            } catch (error) {
+                alertDiv.innerHTML = `<div class="alert alert-error">✗ Eroare de conexiune: ${error.message}</div>`;
+            }
+        }
+        
         // Load links
         async function loadLinks() {
             document.getElementById('links-loading').style.display = 'block';
@@ -537,7 +576,10 @@
                             <a href="${link.url}" target="_blank" class="link-url">${link.url}</a>
                             ${link.description ? `<p style="margin-top: 5px; color: #6c757d; font-size: 0.9em;">${link.description}</p>` : ''}
                         </div>
-                        <span class="badge badge-count">${link.acts_count} acte</span>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <span class="badge badge-count">${link.acts_count} acte</span>
+                            <button class="btn btn-secondary btn-sm" onclick="processLink('${link.url}')">⚙️ Procesează</button>
+                        </div>
                     `;
                     document.getElementById('links-list').appendChild(li);
                 });

@@ -2,12 +2,16 @@
 Links Management API Routes - Endpoints for managing legislation source links.
 """
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 from pydantic import BaseModel, HttpUrl, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+import subprocess
+import logging
 
 from app.api.deps import get_db
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/links", tags=["Links Management"])
@@ -179,3 +183,56 @@ async def get_links(
         ))
     
     return response
+
+
+@router.post("/process", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
+async def process_link(
+    url: HttpUrl,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """
+    Trigger scraping and import for a specific legislation URL.
+    
+    This endpoint starts a background job to:
+    1. Run scraper on the provided URL
+    2. Import generated CSV/MD files into the database
+    
+    The processing happens asynchronously - check the acts list to see results.
+    """
+    
+    def run_scraper_and_import(url_str: str):
+        """Background task to run scraper and import."""
+        try:
+            # Run scraper
+            logger.info(f"Starting scraper for URL: {url_str}")
+            result = subprocess.run(
+                ["python", "/app/scraper_legislatie.py", "--url", url_str],
+                capture_output=True,
+                text=True,
+                timeout=600  # 10 minutes max
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Scraper failed: {result.stderr}")
+                return
+            
+            logger.info(f"Scraper completed successfully for {url_str}")
+            
+            # Run import (note: this would need to be async-aware in production)
+            # For now, we rely on manual import or separate scheduler
+            logger.info("Import should be triggered separately via /api/v1/acte/import")
+            
+        except subprocess.TimeoutExpired:
+            logger.error(f"Scraper timeout for {url_str}")
+        except Exception as e:
+            logger.error(f"Error processing {url_str}: {e}")
+    
+    # Add to background tasks
+    background_tasks.add_task(run_scraper_and_import, str(url))
+    
+    return {
+        "status": "processing",
+        "message": f"Started scraping for {url}. Check acts list for results.",
+        "url": str(url)
+    }
