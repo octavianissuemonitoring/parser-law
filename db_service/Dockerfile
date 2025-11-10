@@ -20,6 +20,14 @@ COPY ./app /app/app
 COPY ./alembic /app/alembic
 COPY alembic.ini /app/
 
+# Copy scraper files from parent directory
+COPY ../scraper_legislatie.py /app/
+COPY ../html_parser.py /app/
+COPY ../hybrid_parser.py /app/
+
+# Create rezultate directory
+RUN mkdir -p /app/rezultate
+
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
