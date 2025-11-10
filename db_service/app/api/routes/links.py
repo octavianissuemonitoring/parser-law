@@ -117,13 +117,28 @@ def run_scraper_and_import(url_str: str, link_id: int):
         logger.info("📦 Starting import of CSV files...")
         
         try:
-            # Run async import function
-            async def do_import():
-                service = ImportService(import_dir)
-                async with AsyncSessionLocal() as db:
-                    return await service.import_all_files(db)
+            # Run async import in a thread with its own event loop
+            def run_async_import():
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    service = ImportService(import_dir)
+                    
+                    # Create async session and run import
+                    async def do_import():
+                        async with AsyncSessionLocal() as db:
+                            return await service.import_all_files(db)
+                    
+                    result = loop.run_until_complete(do_import())
+                    return result
+                finally:
+                    loop.close()
             
-            import_result = asyncio.run(do_import())
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(run_async_import)
+                import_result = future.result(timeout=300)  # 5 minute timeout
             
             logger.info(f"✅ Import completed: {import_result}")
             
