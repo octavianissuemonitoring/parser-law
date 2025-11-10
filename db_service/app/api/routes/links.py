@@ -132,7 +132,6 @@ def run_scraper_and_import(url_str: str, link_id: int):
             
             # Move files back to rezultate directory for archiving
             for f in glob.glob(f"{import_dir}/*"):
-                import shutil
                 dest = f.replace(import_dir, "/app/rezultate")
                 shutil.move(f, dest)
                 logger.info(f"📁 Archived: {os.path.basename(dest)}")
