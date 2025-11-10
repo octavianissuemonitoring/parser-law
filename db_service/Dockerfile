@@ -20,10 +20,13 @@ COPY ./app /app/app
 COPY ./alembic /app/alembic
 COPY alembic.ini /app/
 
-# Copy scraper files from parent directory
-COPY ../scraper_legislatie.py /app/
-COPY ../html_parser.py /app/
-COPY ../hybrid_parser.py /app/
+# Copy scraper files (must be in same directory as Dockerfile)
+COPY scraper_legislatie.py /app/
+COPY html_parser.py /app/
+COPY hybrid_parser.py /app/
+COPY quality_checker.py /app/
+COPY cleanup_files.py /app/
+COPY config.py /app/
 
 # Create rezultate directory
 RUN mkdir -p /app/rezultate
