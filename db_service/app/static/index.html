@@ -654,7 +654,7 @@
                 console.log('Act loaded:', act);
                 
                 // Fetch articles for this act
-                const articlesResponse = await fetch(`${API_BASE}/articole?act_id=${actId}&limit=1000`);
+                const articlesResponse = await fetch(`${API_BASE}/articole?act_id=${actId}&limit=500`);
                 const articlesData = await articlesResponse.json();
                 console.log('Articles data:', articlesData);
                 act.articole = articlesData.items || articlesData;
