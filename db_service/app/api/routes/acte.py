@@ -21,6 +21,77 @@ from app.services import ImportService
 router = APIRouter(prefix="/acte", tags=["Acte Legislative"])
 
 
+@router.get("/search", response_model=ActLegislativList)
+async def search_acte(
+    db: DBSession,
+    q: str = Query(..., min_length=2, description="Search query (minimum 2 characters)"),
+    tip_act: Optional[str] = Query(None, description="Filter by act type"),
+    an_start: Optional[int] = Query(None, ge=1900, le=2100, description="Year range start"),
+    an_end: Optional[int] = Query(None, ge=1900, le=2100, description="Year range end"),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+) -> ActLegislativList:
+    """
+    Advanced search for legislative acts with multi-field matching.
+    
+    Searches across:
+    - Title (titlu_act)
+    - Act number (nr_act)
+    - Year (an_act)
+    - Emitter (emitent_act)
+    
+    Additional filters:
+    - tip_act: Filter by type
+    - an_start/an_end: Year range filter
+    """
+    # Build search query
+    query = select(ActLegislativ)
+    
+    # Multi-field search
+    search_filter = or_(
+        ActLegislativ.titlu_act.ilike(f"%{q}%"),
+        ActLegislativ.emitent_act.ilike(f"%{q}%"),
+        ActLegislativ.nr_act.ilike(f"%{q}%"),
+        func.cast(ActLegislativ.an_act, func.text("VARCHAR")).ilike(f"%{q}%")
+    )
+    query = query.where(search_filter)
+    
+    # Apply additional filters
+    if tip_act:
+        query = query.where(ActLegislativ.tip_act == tip_act)
+    
+    if an_start:
+        query = query.where(ActLegislativ.an_act >= an_start)
+    
+    if an_end:
+        query = query.where(ActLegislativ.an_act <= an_end)
+    
+    # Order by relevance (most recent first)
+    query = query.order_by(ActLegislativ.an_act.desc(), ActLegislativ.created_at.desc())
+    
+    # Get total count
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # Apply pagination
+    query = query.offset(offset).limit(limit)
+    result = await db.execute(query)
+    acte = result.scalars().all()
+    
+    # Calculate pagination
+    page = (offset // limit) + 1
+    pages = (total + limit - 1) // limit
+    
+    return ActLegislativList(
+        items=acte,
+        total=total,
+        page=page,
+        size=limit,
+        pages=pages,
+    )
+
+
 @router.get("", response_model=ActLegislativList)
 async def list_acte(
     db: DBSession,
