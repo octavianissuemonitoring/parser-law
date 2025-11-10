@@ -211,8 +211,8 @@ async def assign_categories_to_act(
 @router.delete("/acts/{act_id}")
 async def remove_categories_from_act(
     act_id: int,
-    category_ids: List[int] = Query(..., description="Category IDs to remove"),
     db: DBSession,
+    category_ids: List[int] = Query(..., description="Category IDs to remove"),
 ) -> Dict[str, Any]:
     """
     Remove specific categories from a legislative act.
