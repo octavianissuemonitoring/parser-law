@@ -42,11 +42,12 @@ class LinkResponse(BaseModel):
 
 class LinksStats(BaseModel):
     """Statistics about links."""
-    total_links: int
-    total_acts_scraped: int
+    total_acts: int  # For UI compatibility
+    total_unique_links: int  # For UI compatibility
     pending_links: int
     completed_links: int
     failed_links: int
+    top_sources: List[dict] = []  # Top sources by acts count
 
 
 # Endpoints
@@ -93,20 +94,22 @@ async def get_links_stats(db: AsyncSession = Depends(get_db)) -> LinksStats:
     Get statistics about legislation links.
     
     Returns:
-    - Total number of links
-    - Total acts scraped from all links
+    - Total number of acts in database
+    - Total unique links
     - Counts by status (pending, completed, failed)
+    - Top sources by acts count
     """
+    
+    # Total acts from acte_legislative table
+    from app.models.act_legislativ import ActLegislativ
+    acts_count_query = select(func.count(ActLegislativ.id))
+    acts_count_result = await db.execute(acts_count_query)
+    total_acts = acts_count_result.scalar() or 0
     
     # Total links
     total_query = select(func.count(LinkLegislatie.id))
     total_result = await db.execute(total_query)
-    total_links = total_result.scalar() or 0
-    
-    # Total acts scraped
-    acts_query = select(func.sum(LinkLegislatie.acte_count))
-    acts_result = await db.execute(acts_query)
-    total_acts = acts_result.scalar() or 0
+    total_unique_links = total_result.scalar() or 0
     
     # Count by status
     pending_query = select(func.count(LinkLegislatie.id)).where(LinkLegislatie.status == LinkStatus.PENDING)
@@ -121,12 +124,26 @@ async def get_links_stats(db: AsyncSession = Depends(get_db)) -> LinksStats:
     failed_result = await db.execute(failed_query)
     failed_links = failed_result.scalar() or 0
     
+    # Top sources (links with most acts)
+    top_sources_query = select(LinkLegislatie).where(LinkLegislatie.acte_count > 0).order_by(LinkLegislatie.acte_count.desc()).limit(10)
+    top_sources_result = await db.execute(top_sources_query)
+    top_sources_links = top_sources_result.scalars().all()
+    
+    top_sources = [
+        {
+            "url": link.url,
+            "acts_count": link.acte_count
+        }
+        for link in top_sources_links
+    ]
+    
     return LinksStats(
-        total_links=total_links,
-        total_acts_scraped=total_acts,
+        total_acts=total_acts,
+        total_unique_links=total_unique_links,
         pending_links=pending_links,
         completed_links=completed_links,
-        failed_links=failed_links
+        failed_links=failed_links,
+        top_sources=top_sources
     )
 
 
