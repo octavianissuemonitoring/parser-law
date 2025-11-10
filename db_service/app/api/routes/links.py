@@ -256,40 +256,43 @@ async def process_link(
             logger.info(f"Scraper completed successfully for {url_str}")
             logger.info(f"Scraper output: {result.stdout[:1000]}")
             
-            # Run import after scraping
+            # Import CSV files using asyncio in a sync context
             logger.info("Starting import of CSV files...")
-            import_result = subprocess.run(
-                ["python", "/app/scripts/run_import.py", "--dir", "/app/rezultate"],
-                capture_output=True,
-                text=True,
-                timeout=300  # 5 minutes max for import
-            )
+            import asyncio
+            from app.services import run_import
             
-            if import_result.returncode != 0:
-                error_msg = f"Import failed: {import_result.stderr[:500]}"
+            try:
+                # Run async import function
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                import_result = loop.run_until_complete(run_import("/app/rezultate"))
+                loop.close()
+                
+                logger.info(f"Import completed: {import_result}")
+                
+                # Count imported acts from this source
+                with SessionLocal() as session:
+                    from app.models import ActLegislativ
+                    acte_count = session.query(ActLegislativ).filter(
+                        ActLegislativ.url_sursa == url_str
+                    ).count()
+                    
+                    stmt = update(LinkLegislatie).where(LinkLegislatie.id == link_id).values(
+                        status=LinkStatus.COMPLETED,
+                        acte_count=acte_count,
+                        updated_at=datetime.utcnow(),
+                        last_scraped_at=datetime.utcnow(),
+                        error_message=None
+                    )
+                    session.execute(stmt)
+                    session.commit()
+                    logger.info(f"Link completed with {acte_count} acts imported")
+                    
+            except Exception as e:
+                error_msg = f"Import failed: {str(e)[:500]}"
                 logger.error(error_msg)
                 update_link_status_sync(link_id, LinkStatus.FAILED, error_msg)
                 return
-            
-            logger.info(f"Import completed: {import_result.stdout[:1000]}")
-            
-            # Count imported acts from this source
-            with SessionLocal() as session:
-                from app.models import ActLegislativ
-                acte_count = session.query(ActLegislativ).filter(
-                    ActLegislativ.url_sursa == url_str
-                ).count()
-                
-                stmt = update(LinkLegislatie).where(LinkLegislatie.id == link_id).values(
-                    status=LinkStatus.COMPLETED,
-                    acte_count=acte_count,
-                    updated_at=datetime.utcnow(),
-                    last_scraped_at=datetime.utcnow(),
-                    error_message=None
-                )
-                session.execute(stmt)
-                session.commit()
-                logger.info(f"Link completed with {acte_count} acts imported")
             
         except subprocess.TimeoutExpired:
             error_msg = f"Scraper timeout (>10 minutes)"
