@@ -82,7 +82,7 @@ async def root():
 
 
 # Import and include routers
-from app.api.routes import acte_router, articole_router, stats_router, issues_router
+from app.api.routes import acte_router, articole_router, stats_router, issues_router, categories_router
 from app.api.routes.ai_processing import router as ai_router
 from app.api.routes.export import router as export_router
 from app.api.routes.links import router as links_router
@@ -91,6 +91,7 @@ app.include_router(acte_router, prefix="/api/v1")
 app.include_router(articole_router, prefix="/api/v1")
 app.include_router(stats_router, prefix="/api/v1")
 app.include_router(issues_router, prefix="/api/v1")
+app.include_router(categories_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
 app.include_router(links_router, prefix="/api/v1")
