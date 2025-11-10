@@ -2,14 +2,16 @@
 Links Management API Routes - Endpoints for managing legislation source links.
 """
 from typing import List, Optional
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 from pydantic import BaseModel, HttpUrl, Field
-from sqlalchemy import text
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 import subprocess
 import logging
 
 from app.api.deps import get_db
+from app.models.link_legislatie import LinkLegislatie, LinkStatus
 
 logger = logging.getLogger(__name__)
 
@@ -26,163 +28,139 @@ class LinkCreate(BaseModel):
 
 class LinkResponse(BaseModel):
     """Link information."""
+    id: int
     url: str
-    description: Optional[str]
-    acts_count: int = Field(description="Number of acts from this link")
+    status: str
+    acte_count: int = Field(description="Number of acts from this link")
+    error_message: Optional[str] = None
+    created_at: datetime
+    last_scraped_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
 
 
 class LinksStats(BaseModel):
     """Statistics about links."""
-    total_acts: int
-    total_unique_links: int
-    top_sources: List[LinkResponse] = Field(description="Top sources by acts count")
+    total_links: int
+    total_acts_scraped: int
+    pending_links: int
+    completed_links: int
+    failed_links: int
 
 
 # Endpoints
 
-@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=LinkResponse, status_code=status.HTTP_201_CREATED)
 async def add_link(
     link_data: LinkCreate,
     db: AsyncSession = Depends(get_db)
-) -> dict:
+) -> LinkResponse:
     """
     Add a new legislation link to scrape.
     
     This endpoint registers a new URL to be scraped for legislative acts.
-    The scraping will be triggered automatically by the scheduler.
+    The URL will have status 'pending_scraping' until processed.
     """
     
     # Check if link already exists
-    check_query = text("""
-        SELECT COUNT(*) 
-        FROM legislatie.acte_legislative 
-        WHERE url_legislatie = :url
-    """)
-    result = await db.execute(check_query, {"url": str(link_data.url)})
-    existing_count = result.scalar()
+    query = select(LinkLegislatie).where(LinkLegislatie.url == str(link_data.url))
+    result = await db.execute(query)
+    existing_link = result.scalar_one_or_none()
     
-    if existing_count and existing_count > 0:
+    if existing_link:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Link already exists with {existing_count} acts"
+            detail=f"Link already exists with ID {existing_link.id}"
         )
     
-    # Insert placeholder act for this link (to track the source)
-    insert_query = text("""
-        INSERT INTO legislatie.acte_legislative 
-        (tip_act, titlu_act, url_legislatie, html_content, created_at, updated_at)
-        VALUES 
-        (:tip, :titlu, :url, :description, NOW(), NOW())
-        RETURNING id
-    """)
-    
-    title = link_data.description or f"Link to scrape: {str(link_data.url)}"
-    
-    insert_result = await db.execute(
-        insert_query,
-        {
-            "tip": "PENDING_SCRAPE",
-            "titlu": title,
-            "url": str(link_data.url),
-            "description": link_data.description
-        }
+    # Create new link
+    new_link = LinkLegislatie(
+        url=str(link_data.url),
+        status=LinkStatus.PENDING
     )
+    
+    db.add(new_link)
     await db.commit()
+    await db.refresh(new_link)
     
-    new_id = insert_result.scalar()
-    
-    return {
-        "message": "Link added successfully. Scraping will be triggered automatically.",
-        "id": new_id,
-        "url": str(link_data.url),
-        "description": link_data.description
-    }
+    return LinkResponse.from_orm(new_link)
 
 
 @router.get("/stats", response_model=LinksStats)
 async def get_links_stats(db: AsyncSession = Depends(get_db)) -> LinksStats:
     """
-    Get statistics about legislation links and sources.
+    Get statistics about legislation links.
     
     Returns:
-    - Total number of acts
-    - Total unique source links
-    - Top sources by acts count
+    - Total number of links
+    - Total acts scraped from all links
+    - Counts by status (pending, completed, failed)
     """
     
-    # Total acts
-    total_query = text("SELECT COUNT(*) FROM legislatie.acte_legislative")
+    # Total links
+    total_query = select(func.count(LinkLegislatie.id))
     total_result = await db.execute(total_query)
-    total_acts = total_result.scalar() or 0
+    total_links = total_result.scalar() or 0
     
-    # Unique links with counts
-    links_query = text("""
-        SELECT 
-            url_legislatie as url,
-            COUNT(*) as acts_count
-        FROM legislatie.acte_legislative
-        WHERE url_legislatie IS NOT NULL
-        GROUP BY url_legislatie
-        ORDER BY acts_count DESC
-        LIMIT 10
-    """)
-    links_result = await db.execute(links_query)
-    links = links_result.fetchall()
+    # Total acts scraped
+    acts_query = select(func.sum(LinkLegislatie.acte_count))
+    acts_result = await db.execute(acts_query)
+    total_acts = acts_result.scalar() or 0
     
-    # Build response
-    top_sources = []
-    for row in links:
-        top_sources.append({
-            "url": row[0],
-            "description": None,
-            "acts_count": row[1]
-        })
+    # Count by status
+    pending_query = select(func.count(LinkLegislatie.id)).where(LinkLegislatie.status == LinkStatus.PENDING)
+    pending_result = await db.execute(pending_query)
+    pending_links = pending_result.scalar() or 0
+    
+    completed_query = select(func.count(LinkLegislatie.id)).where(LinkLegislatie.status == LinkStatus.COMPLETED)
+    completed_result = await db.execute(completed_query)
+    completed_links = completed_result.scalar() or 0
+    
+    failed_query = select(func.count(LinkLegislatie.id)).where(LinkLegislatie.status == LinkStatus.FAILED)
+    failed_result = await db.execute(failed_query)
+    failed_links = failed_result.scalar() or 0
     
     return LinksStats(
-        total_acts=total_acts,
-        total_unique_links=len(top_sources),
-        top_sources=top_sources
+        total_links=total_links,
+        total_acts_scraped=total_acts,
+        pending_links=pending_links,
+        completed_links=completed_links,
+        failed_links=failed_links
     )
 
 
-@router.get("/", response_model=List[LinkResponse])
+@router.get("/", response_model=dict)
 async def get_links(
     limit: int = 50,
+    skip: int = 0,
     db: AsyncSession = Depends(get_db)
-) -> List[LinkResponse]:
+) -> dict:
     """
-    Get all unique legislation links with acts count.
+    Get all legislation links with pagination.
     
     Parameters:
     - limit: Maximum number of links to return (default: 50)
+    - skip: Number of links to skip (default: 0)
     
-    Returns list of links with metadata and acts count.
+    Returns list of links with metadata.
     """
     
-    # Get all unique links with counts
-    query = text("""
-        SELECT 
-            url_legislatie as url,
-            COUNT(*) as acts_count
-        FROM legislatie.acte_legislative
-        WHERE url_legislatie IS NOT NULL
-        GROUP BY url_legislatie
-        ORDER BY acts_count DESC
-        LIMIT :limit
-    """)
-    result = await db.execute(query, {"limit": limit})
-    links = result.fetchall()
+    # Count total
+    count_query = select(func.count(LinkLegislatie.id))
+    count_result = await db.execute(count_query)
+    total = count_result.scalar() or 0
+    
+    # Get links
+    query = select(LinkLegislatie).order_by(LinkLegislatie.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    links = result.scalars().all()
     
     # Build response
-    response = []
-    for row in links:
-        response.append(LinkResponse(
-            url=row[0],
-            description=None,
-            acts_count=row[1]
-        ))
-    
-    return response
+    return {
+        "total": total,
+        "items": [LinkResponse.from_orm(link) for link in links]
+    }
 
 
 @router.post("/process", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
@@ -195,14 +173,49 @@ async def process_link(
     Trigger scraping and import for a specific legislation URL.
     
     This endpoint starts a background job to:
-    1. Run scraper on the provided URL
-    2. Import generated CSV/MD files into the database
+    1. Update link status to 'processing'
+    2. Run scraper on the provided URL
+    3. Update link status to 'completed' or 'failed'
     
-    The processing happens asynchronously - check the acts list to see results.
+    The processing happens asynchronously.
     """
     
-    def run_scraper_and_import(url_str: str):
+    # Find or create link
+    query = select(LinkLegislatie).where(LinkLegislatie.url == str(url))
+    result = await db.execute(query)
+    link = result.scalar_one_or_none()
+    
+    if not link:
+        # Create new link
+        link = LinkLegislatie(url=str(url), status=LinkStatus.PROCESSING)
+        db.add(link)
+    else:
+        # Update existing link
+        link.status = LinkStatus.PROCESSING
+        link.updated_at = datetime.utcnow()
+    
+    await db.commit()
+    link_id = link.id
+    
+    def run_scraper_and_import(url_str: str, link_id: int):
         """Background task to run scraper and import."""
+        import asyncio
+        from app.database import async_session_maker
+        
+        async def update_link_status(link_id: int, status: str, error: Optional[str] = None):
+            """Update link status in database."""
+            async with async_session_maker() as session:
+                query = select(LinkLegislatie).where(LinkLegislatie.id == link_id)
+                result = await session.execute(query)
+                link = result.scalar_one_or_none()
+                if link:
+                    link.status = status
+                    link.updated_at = datetime.utcnow()
+                    link.last_scraped_at = datetime.utcnow()
+                    if error:
+                        link.error_message = error
+                    await session.commit()
+        
         try:
             # Run scraper
             logger.info(f"Starting scraper for URL: {url_str}")
@@ -214,25 +227,29 @@ async def process_link(
             )
             
             if result.returncode != 0:
-                logger.error(f"Scraper failed: {result.stderr}")
+                error_msg = f"Scraper failed: {result.stderr[:500]}"
+                logger.error(error_msg)
+                asyncio.run(update_link_status(link_id, LinkStatus.FAILED, error_msg))
                 return
             
             logger.info(f"Scraper completed successfully for {url_str}")
-            
-            # Run import (note: this would need to be async-aware in production)
-            # For now, we rely on manual import or separate scheduler
-            logger.info("Import should be triggered separately via /api/v1/acte/import")
+            asyncio.run(update_link_status(link_id, LinkStatus.COMPLETED))
             
         except subprocess.TimeoutExpired:
-            logger.error(f"Scraper timeout for {url_str}")
+            error_msg = f"Scraper timeout (>10 minutes)"
+            logger.error(error_msg)
+            asyncio.run(update_link_status(link_id, LinkStatus.FAILED, error_msg))
         except Exception as e:
-            logger.error(f"Error processing {url_str}: {e}")
+            error_msg = f"Error processing: {str(e)[:500]}"
+            logger.error(error_msg)
+            asyncio.run(update_link_status(link_id, LinkStatus.FAILED, error_msg))
     
     # Add to background tasks
-    background_tasks.add_task(run_scraper_and_import, str(url))
+    background_tasks.add_task(run_scraper_and_import, str(url), link_id)
     
     return {
         "status": "processing",
-        "message": f"Started scraping for {url}. Check acts list for results.",
-        "url": str(url)
+        "message": f"Started scraping for {url}. Check link status for updates.",
+        "url": str(url),
+        "link_id": link_id
     }
