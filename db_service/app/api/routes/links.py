@@ -200,11 +200,11 @@ async def process_link(
     def run_scraper_and_import(url_str: str, link_id: int):
         """Background task to run scraper and import."""
         import asyncio
-        from app.database import async_session_maker
+        from app.database import AsyncSessionLocal
         
         async def update_link_status(link_id: int, status: str, error: Optional[str] = None):
             """Update link status in database."""
-            async with async_session_maker() as session:
+            async with AsyncSessionLocal() as session:
                 query = select(LinkLegislatie).where(LinkLegislatie.id == link_id)
                 result = await session.execute(query)
                 link = result.scalar_one_or_none()
