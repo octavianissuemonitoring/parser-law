@@ -651,11 +651,14 @@
                 // Fetch act details
                 const actResponse = await fetch(`${API_BASE}/acte/${actId}`);
                 const act = await actResponse.json();
+                console.log('Act loaded:', act);
                 
                 // Fetch articles for this act
                 const articlesResponse = await fetch(`${API_BASE}/articole?act_id=${actId}&limit=1000`);
                 const articlesData = await articlesResponse.json();
+                console.log('Articles data:', articlesData);
                 act.articole = articlesData.items || articlesData;
+                console.log('Act with articles:', act.articole.length, 'articles');
                 
                 document.getElementById('index-loading').style.display = 'none';
                 
