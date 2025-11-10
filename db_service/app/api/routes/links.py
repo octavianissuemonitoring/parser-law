@@ -19,6 +19,99 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/links", tags=["Links Management"])
 
 
+# Background task function (must be at module level for FastAPI)
+def run_scraper_and_import(url_str: str, link_id: int):
+    """Background task to run scraper and import - MUST be at module level."""
+    from sqlalchemy import create_engine, update
+    from sqlalchemy.orm import sessionmaker
+    from app.config import settings
+    import asyncio
+    from app.services.import_service import ImportService
+    from app.database import AsyncSessionLocal
+    from app.models import ActLegislativ
+    
+    logger.info(f"🚀 Background task started for link_id={link_id}, url={url_str}")
+    
+    # Create synchronous engine for status updates
+    sync_database_url = settings.database_url.replace('postgresql+asyncpg://', 'postgresql://')
+    engine = create_engine(sync_database_url)
+    SessionLocal = sessionmaker(bind=engine)
+    
+    def update_link_status_sync(link_id: int, status: str, acte_count: int = 0, error: Optional[str] = None):
+        """Update link status in database synchronously."""
+        with SessionLocal() as session:
+            stmt = update(LinkLegislatie).where(LinkLegislatie.id == link_id).values(
+                status=status,
+                acte_count=acte_count,
+                updated_at=datetime.utcnow(),
+                last_scraped_at=datetime.utcnow(),
+                error_message=error
+            )
+            session.execute(stmt)
+            session.commit()
+            logger.info(f"✅ Updated link {link_id} to status={status}, acte_count={acte_count}")
+    
+    try:
+        # Run scraper
+        logger.info(f"📥 Starting scraper for URL: {url_str}")
+        result = subprocess.run(
+            ["python", "/app/scraper_legislatie.py", "--url", url_str],
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 minutes max
+        )
+        
+        if result.returncode != 0:
+            error_msg = f"Scraper failed: {result.stderr[:500]}"
+            logger.error(f"❌ {error_msg}")
+            update_link_status_sync(link_id, LinkStatus.FAILED, 0, error_msg)
+            return
+        
+        logger.info(f"✅ Scraper completed successfully")
+        logger.info(f"📝 Scraper output: {result.stdout[:500]}")
+        
+        # Import CSV files using ImportService
+        logger.info("📦 Starting import of CSV files...")
+        
+        try:
+            # Run async import function in new event loop
+            async def do_import():
+                service = ImportService("/app/rezultate")
+                async with AsyncSessionLocal() as db:
+                    return await service.import_all_files(db)
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            import_result = loop.run_until_complete(do_import())
+            loop.close()
+            
+            logger.info(f"✅ Import completed: {import_result}")
+            
+            # Count imported acts from this source
+            with SessionLocal() as session:
+                acte_count = session.query(ActLegislativ).filter(
+                    ActLegislativ.url_legislatie == url_str
+                ).count()
+                
+                logger.info(f"📊 Found {acte_count} acts for this URL")
+                update_link_status_sync(link_id, LinkStatus.COMPLETED, acte_count, None)
+                
+        except Exception as e:
+            error_msg = f"Import failed: {str(e)[:500]}"
+            logger.error(f"❌ {error_msg}")
+            update_link_status_sync(link_id, LinkStatus.FAILED, 0, error_msg)
+            return
+            
+    except subprocess.TimeoutExpired:
+        error_msg = f"Scraper timeout (>10 minutes)"
+        logger.error(f"⏱️ {error_msg}")
+        update_link_status_sync(link_id, LinkStatus.FAILED, 0, error_msg)
+    except Exception as e:
+        error_msg = f"Error processing: {str(e)[:500]}"
+        logger.error(f"❌ {error_msg}")
+        update_link_status_sync(link_id, LinkStatus.FAILED, 0, error_msg)
+
+
 # Pydantic Models
 class LinkCreate(BaseModel):
     """Request to add a new link."""
@@ -214,103 +307,7 @@ async def process_link(
     await db.commit()
     link_id = link.id
     
-    def run_scraper_and_import(url_str: str, link_id: int):
-        """Background task to run scraper and import."""
-        from sqlalchemy import create_engine, update
-        from sqlalchemy.orm import sessionmaker
-        from app.config import settings
-        
-        # Create synchronous engine for background task
-        sync_database_url = settings.database_url.replace('postgresql+asyncpg://', 'postgresql://')
-        engine = create_engine(sync_database_url)
-        SessionLocal = sessionmaker(bind=engine)
-        
-        def update_link_status_sync(link_id: int, status: str, error: Optional[str] = None):
-            """Update link status in database synchronously."""
-            with SessionLocal() as session:
-                stmt = update(LinkLegislatie).where(LinkLegislatie.id == link_id).values(
-                    status=status,
-                    updated_at=datetime.utcnow(),
-                    last_scraped_at=datetime.utcnow(),
-                    error_message=error
-                )
-                session.execute(stmt)
-                session.commit()
-        
-        try:
-            # Run scraper
-            logger.info(f"Starting scraper for URL: {url_str}")
-            result = subprocess.run(
-                ["python", "/app/scraper_legislatie.py", "--url", url_str],
-                capture_output=True,
-                text=True,
-                timeout=600  # 10 minutes max
-            )
-            
-            if result.returncode != 0:
-                error_msg = f"Scraper failed: {result.stderr[:500]}"
-                logger.error(error_msg)
-                update_link_status_sync(link_id, LinkStatus.FAILED, error_msg)
-                return
-            
-            logger.info(f"Scraper completed successfully for {url_str}")
-            logger.info(f"Scraper output: {result.stdout[:1000]}")
-            
-            # Import CSV files using ImportService directly
-            logger.info("Starting import of CSV files...")
-            
-            try:
-                import asyncio
-                from app.services.import_service import ImportService
-                from app.database import AsyncSessionLocal
-                
-                # Run async import function in new event loop
-                async def do_import():
-                    service = ImportService("/app/rezultate")
-                    async with AsyncSessionLocal() as db:
-                        return await service.import_all_files(db)
-                
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                import_result = loop.run_until_complete(do_import())
-                loop.close()
-                
-                logger.info(f"Import completed: {import_result}")
-                
-                # Count imported acts from this source
-                with SessionLocal() as session:
-                    from app.models import ActLegislativ
-                    acte_count = session.query(ActLegislativ).filter(
-                        ActLegislativ.url_legislatie == url_str
-                    ).count()
-                    
-                    stmt = update(LinkLegislatie).where(LinkLegislatie.id == link_id).values(
-                        status=LinkStatus.COMPLETED,
-                        acte_count=acte_count,
-                        updated_at=datetime.utcnow(),
-                        last_scraped_at=datetime.utcnow(),
-                        error_message=None
-                    )
-                    session.execute(stmt)
-                    session.commit()
-                    logger.info(f"Link completed with {acte_count} acts imported")
-                    
-            except Exception as e:
-                error_msg = f"Import failed: {str(e)[:500]}"
-                logger.error(error_msg)
-                update_link_status_sync(link_id, LinkStatus.FAILED, error_msg)
-                return
-            
-        except subprocess.TimeoutExpired:
-            error_msg = f"Scraper timeout (>10 minutes)"
-            logger.error(error_msg)
-            update_link_status_sync(link_id, LinkStatus.FAILED, error_msg)
-        except Exception as e:
-            error_msg = f"Error processing: {str(e)[:500]}"
-            logger.error(error_msg)
-            update_link_status_sync(link_id, LinkStatus.FAILED, error_msg)
-    
-    # Add to background tasks
+    # Add to background tasks - use module-level function
     background_tasks.add_task(run_scraper_and_import, str(url), link_id)
     
     return {
