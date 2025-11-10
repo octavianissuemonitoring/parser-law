@@ -216,22 +216,26 @@ async def process_link(
     
     def run_scraper_and_import(url_str: str, link_id: int):
         """Background task to run scraper and import."""
-        import asyncio
-        from app.database import AsyncSessionLocal
+        from sqlalchemy import create_engine, update
+        from sqlalchemy.orm import sessionmaker
+        from app.config import settings
         
-        async def update_link_status(link_id: int, status: str, error: Optional[str] = None):
-            """Update link status in database."""
-            async with AsyncSessionLocal() as session:
-                query = select(LinkLegislatie).where(LinkLegislatie.id == link_id)
-                result = await session.execute(query)
-                link = result.scalar_one_or_none()
-                if link:
-                    link.status = status
-                    link.updated_at = datetime.utcnow()
-                    link.last_scraped_at = datetime.utcnow()
-                    if error:
-                        link.error_message = error
-                    await session.commit()
+        # Create synchronous engine for background task
+        sync_database_url = settings.database_url.replace('postgresql+asyncpg://', 'postgresql://')
+        engine = create_engine(sync_database_url)
+        SessionLocal = sessionmaker(bind=engine)
+        
+        def update_link_status_sync(link_id: int, status: str, error: Optional[str] = None):
+            """Update link status in database synchronously."""
+            with SessionLocal() as session:
+                stmt = update(LinkLegislatie).where(LinkLegislatie.id == link_id).values(
+                    status=status,
+                    updated_at=datetime.utcnow(),
+                    last_scraped_at=datetime.utcnow(),
+                    error_message=error
+                )
+                session.execute(stmt)
+                session.commit()
         
         try:
             # Run scraper
@@ -246,20 +250,20 @@ async def process_link(
             if result.returncode != 0:
                 error_msg = f"Scraper failed: {result.stderr[:500]}"
                 logger.error(error_msg)
-                asyncio.run(update_link_status(link_id, LinkStatus.FAILED, error_msg))
+                update_link_status_sync(link_id, LinkStatus.FAILED, error_msg)
                 return
             
             logger.info(f"Scraper completed successfully for {url_str}")
-            asyncio.run(update_link_status(link_id, LinkStatus.COMPLETED))
+            update_link_status_sync(link_id, LinkStatus.COMPLETED, None)
             
         except subprocess.TimeoutExpired:
             error_msg = f"Scraper timeout (>10 minutes)"
             logger.error(error_msg)
-            asyncio.run(update_link_status(link_id, LinkStatus.FAILED, error_msg))
+            update_link_status_sync(link_id, LinkStatus.FAILED, error_msg)
         except Exception as e:
             error_msg = f"Error processing: {str(e)[:500]}"
             logger.error(error_msg)
-            asyncio.run(update_link_status(link_id, LinkStatus.FAILED, error_msg))
+            update_link_status_sync(link_id, LinkStatus.FAILED, error_msg)
     
     # Add to background tasks
     background_tasks.add_task(run_scraper_and_import, str(url), link_id)
