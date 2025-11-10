@@ -97,14 +97,11 @@ def run_scraper_and_import(url_str: str, link_id: int):
             
             logger.info(f"✅ Import completed: {import_result}")
             
-            # Count imported acts from this source
-            with SessionLocal() as session:
-                acte_count = session.query(ActLegislativ).filter(
-                    ActLegislativ.url_legislatie == url_str
-                ).count()
-                
-                logger.info(f"📊 Found {acte_count} acts for this URL")
-                update_link_status_sync(link_id, LinkStatus.COMPLETED, acte_count, None)
+            # Get acte_count from import result (new_acts + updated_acts)
+            acte_count = import_result.get('new_acts', 0) + import_result.get('updated_acts', 0)
+            
+            logger.info(f"📊 Imported {acte_count} acts from this link")
+            update_link_status_sync(link_id, LinkStatus.COMPLETED, acte_count, None)
                 
         except Exception as e:
             error_msg = f"Import failed: {str(e)[:500]}"
