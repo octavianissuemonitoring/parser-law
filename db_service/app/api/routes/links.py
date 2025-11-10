@@ -130,8 +130,8 @@ def run_scraper_and_import(url_str: str, link_id: int):
                 shutil.move(f, dest)
                 logger.info(f"📁 Archived: {os.path.basename(dest)}")
             
-            # Get acte_count from import result (new_acts + updated_acts)
-            acte_count = import_result.get('new_acts', 0) + import_result.get('updated_acts', 0)
+            # Get acte_count from import result (imported_acts + updated_acts)
+            acte_count = import_result.get('imported_acts', 0) + import_result.get('updated_acts', 0)
             
             logger.info(f"📊 Imported {acte_count} acts from this link")
             update_link_status_sync(link_id, LinkStatus.COMPLETED, acte_count, None)
