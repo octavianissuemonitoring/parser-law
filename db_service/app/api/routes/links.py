@@ -9,6 +9,8 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 import subprocess
 import logging
+import os
+import tempfile
 
 from app.api.deps import get_db
 from app.models.link_legislatie import LinkLegislatie, LinkStatus
@@ -52,13 +54,21 @@ def run_scraper_and_import(url_str: str, link_id: int):
             logger.info(f"✅ Updated link {link_id} to status={status}, acte_count={acte_count}")
     
     try:
-        # Run scraper
+        # Create links file with single URL for scraper
+        links_file_path = "/app/linkuri_legislatie.txt"
+        with open(links_file_path, 'w', encoding='utf-8') as f:
+            f.write(f"{url_str}\n")
+        
         logger.info(f"📥 Starting scraper for URL: {url_str}")
+        logger.info(f"📝 Created links file: {links_file_path}")
+        
+        # Run scraper (it will read from linkuri_legislatie.txt)
         result = subprocess.run(
-            ["python", "/app/scraper_legislatie.py", "--url", url_str],
+            ["python", "/app/scraper_legislatie.py"],
             capture_output=True,
             text=True,
-            timeout=600  # 10 minutes max
+            timeout=600,  # 10 minutes max
+            cwd="/app"
         )
         
         if result.returncode != 0:
