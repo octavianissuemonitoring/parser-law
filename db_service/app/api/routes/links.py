@@ -281,7 +281,7 @@ async def process_link(
                 with SessionLocal() as session:
                     from app.models import ActLegislativ
                     acte_count = session.query(ActLegislativ).filter(
-                        ActLegislativ.url_sursa == url_str
+                        ActLegislativ.url_legislatie == url_str
                     ).count()
                     
                     stmt = update(LinkLegislatie).where(LinkLegislatie.id == link_id).values(
