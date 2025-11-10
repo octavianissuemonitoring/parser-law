@@ -4,7 +4,7 @@ API Routes for Acte Legislative (Legislative Acts).
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, status, BackgroundTasks
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, cast, String
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DBSession, Pagination
@@ -52,7 +52,7 @@ async def search_acte(
         ActLegislativ.titlu_act.ilike(f"%{q}%"),
         ActLegislativ.emitent_act.ilike(f"%{q}%"),
         ActLegislativ.nr_act.ilike(f"%{q}%"),
-        func.cast(ActLegislativ.an_act, func.text("VARCHAR")).ilike(f"%{q}%")
+        cast(ActLegislativ.an_act, String).ilike(f"%{q}%")
     )
     query = query.where(search_filter)
     
