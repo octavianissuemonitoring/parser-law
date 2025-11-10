@@ -13,7 +13,7 @@ router = APIRouter(prefix="/stats", tags=["Statistics"])
 
 
 @router.get("/", response_model=Dict[str, Any])
-async def get_statistics(db: AsyncSession = DBSession):
+async def get_statistics(db: DBSession):
     """
     Get comprehensive statistics about the system.
     
