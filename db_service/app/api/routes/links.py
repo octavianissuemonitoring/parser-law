@@ -256,16 +256,23 @@ async def process_link(
             logger.info(f"Scraper completed successfully for {url_str}")
             logger.info(f"Scraper output: {result.stdout[:1000]}")
             
-            # Import CSV files using asyncio in a sync context
+            # Import CSV files using ImportService directly
             logger.info("Starting import of CSV files...")
-            import asyncio
-            from app.services import run_import
             
             try:
-                # Run async import function
+                import asyncio
+                from app.services.import_service import ImportService
+                from app.database import AsyncSessionLocal
+                
+                # Run async import function in new event loop
+                async def do_import():
+                    service = ImportService("/app/rezultate")
+                    async with AsyncSessionLocal() as db:
+                        return await service.import_all_files(db)
+                
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                import_result = loop.run_until_complete(run_import("/app/rezultate"))
+                import_result = loop.run_until_complete(do_import())
                 loop.close()
                 
                 logger.info(f"Import completed: {import_result}")
