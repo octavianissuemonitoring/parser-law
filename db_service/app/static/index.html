@@ -199,12 +199,33 @@
             padding: 20px;
             transition: all 0.3s;
             cursor: pointer;
+            position: relative;
         }
         
         .act-card:hover {
             border-color: #667eea;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             transform: translateY(-3px);
+        }
+        
+        .btn-delete-act {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        
+        .btn-delete-act:hover {
+            background: #c82333;
+            transform: scale(1.05);
         }
         
         .act-title {
@@ -616,9 +637,11 @@
                 acts.forEach(act => {
                     const card = document.createElement('div');
                     card.className = 'act-card';
-                    card.onclick = () => showActDetails(act.id);
                     
                     card.innerHTML = `
+                        <button class="btn-delete-act" onclick="deleteAct(${act.id}, event)" title="Șterge act">
+                            🗑️ Șterge
+                        </button>
                         <div class="act-title">${act.titlu_act || 'Fără titlu'}</div>
                         <div class="act-meta">
                             <span class="act-meta-item"><strong>Nr:</strong> ${act.nr_act}</span>
@@ -630,6 +653,14 @@
                             ${act.metadate ? (typeof act.metadate === 'string' ? act.metadate.substring(0, 150) + '...' : '') : 'Click pentru detalii...'}
                         </div>
                     `;
+                    
+                    // Click pe card (exclude butonul delete)
+                    card.addEventListener('click', (e) => {
+                        if (!e.target.classList.contains('btn-delete-act')) {
+                            showActDetails(act.id);
+                        }
+                    });
+                    
                     document.getElementById('acts-container').appendChild(card);
                 });
             } catch (error) {
@@ -655,6 +686,36 @@
         
         function showActDetails(actId) {
             window.open(`${API_BASE}/acte/${actId}`, '_blank');
+        }
+        
+        // Delete act from database
+        async function deleteAct(actId, event) {
+            // Stop propagation to prevent card click
+            event.stopPropagation();
+            
+            if (!confirm('Sigur doriți să ștergeți acest act normativ?\n\nAceastă acțiune va șterge și toate articolele asociate și este IREVERSIBILĂ!')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/acte/${actId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.status === 204 || response.ok) {
+                    alert('✅ Actul normativ a fost șters cu succes!');
+                    // Reload acts list
+                    loadActs();
+                    // Update stats
+                    loadStats();
+                } else {
+                    const error = await response.json();
+                    alert(`❌ Eroare la ștergere: ${error.detail || 'Eroare necunoscută'}`);
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('❌ Eroare la ștergere: ' + error.message);
+            }
         }
         
         // Load acts for index dropdown
