@@ -3,7 +3,7 @@ Stats API Routes - Statistics and metrics
 """
 from typing import Dict, Any
 from fastapi import APIRouter
-from sqlalchemy import select, func, extract
+from sqlalchemy import select, func, extract, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import DBSession
@@ -81,7 +81,7 @@ async def get_statistics(db: DBSession):
     
     # Recent changes (acts modified in last 30 days)
     recent_changes_query = select(func.count(ActLegislativ.id)).where(
-        ActLegislativ.updated_at > func.now() - func.cast("30 days", type_=func.text("interval"))
+        ActLegislativ.updated_at > func.now() - text("INTERVAL '30 days'")
     )
     recent_changes = await db.scalar(recent_changes_query)
     
