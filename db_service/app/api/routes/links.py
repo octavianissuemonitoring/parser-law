@@ -29,10 +29,7 @@ def run_scraper_and_import(url_str: str, link_id: int):
     from sqlalchemy import create_engine, update
     from sqlalchemy.orm import sessionmaker
     from app.config import settings
-    import asyncio
-    from app.services.import_service import ImportService
-    from app.database import AsyncSessionLocal
-    from app.models import ActLegislativ
+    import requests
     
     logger.info(f"🚀 Background task started for link_id={link_id}, url={url_str}")
     
@@ -113,32 +110,17 @@ def run_scraper_and_import(url_str: str, link_id: int):
                 shutil.move(md_file, import_dir)
             logger.info(f"📂 Moved to temp: {os.path.basename(csv_file)}")
         
-        # Import CSV files using ImportService
+        # Import CSV files using HTTP endpoint (avoids async/event loop issues)
         logger.info("📦 Starting import of CSV files...")
         
         try:
-            # Run async import in a thread with its own event loop
-            def run_async_import():
-                import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    service = ImportService(import_dir)
-                    
-                    # Create async session and run import
-                    async def do_import():
-                        async with AsyncSessionLocal() as db:
-                            return await service.import_all_files(db)
-                    
-                    result = loop.run_until_complete(do_import())
-                    return result
-                finally:
-                    loop.close()
+            import_url = f"http://localhost:8000/api/v1/acte/import?rezultate_dir={import_dir}"
+            response = requests.post(import_url, timeout=300)
             
-            from concurrent.futures import ThreadPoolExecutor
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(run_async_import)
-                import_result = future.result(timeout=300)  # 5 minute timeout
+            if response.status_code != 200:
+                raise Exception(f"Import HTTP request failed: {response.status_code} - {response.text}")
+            
+            import_result = response.json()
             
             logger.info(f"✅ Import completed: {import_result}")
             
