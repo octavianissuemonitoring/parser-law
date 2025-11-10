@@ -23,6 +23,7 @@ inspect_*.py
 demo_*.py
 test_format_*.py
 test_split.py
+test_save*.py
 test_confidence.txt
 test_printable.txt
 verify_result.py
