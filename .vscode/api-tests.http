@@ -1,0 +1,52 @@
+# API Testing with REST Client
+# Usage: Install "REST Client" extension in VS Code
+# Click "Send Request" above each request
+
+@baseUrl = http://localhost:8000
+# For VPS, change to: http://legislatie.issuemonitoring.ro
+
+### Health Check
+GET {{baseUrl}}/health
+
+### API Documentation
+# Opens in browser
+GET {{baseUrl}}/docs
+
+### Get All Acte (with pagination)
+GET {{baseUrl}}/api/v1/acte?limit=10&offset=0
+
+### Get Single Act by ID
+GET {{baseUrl}}/api/v1/acte/1
+
+### Get Act with Articles
+GET {{baseUrl}}/api/v1/acte/1?include_articole=true
+
+### Search Acte by Type
+GET {{baseUrl}}/api/v1/acte?tip_act=LEGE
+
+### Search Acte by Year
+GET {{baseUrl}}/api/v1/acte?an=2024
+
+### Search Acte by Number
+GET {{baseUrl}}/api/v1/acte?numar=123
+
+### Get All Categories
+GET {{baseUrl}}/api/v1/categories
+
+### Create Category
+POST {{baseUrl}}/api/v1/categories
+Content-Type: application/json
+
+{
+  "nume": "Test Category",
+  "descriere": "Category created via REST Client"
+}
+
+### Assign Category to Act
+POST {{baseUrl}}/api/v1/acte/1/categories/1
+
+### Export Act for Analysis
+GET {{baseUrl}}/api/v1/acte/1/export-for-analysis
+
+### Get Statistics
+GET {{baseUrl}}/api/v1/stats
