@@ -409,15 +409,21 @@ async def export_act_for_analysis(
     response["articole"] = [
         {
             "id": art.id,
-            "numar_articol": art.numar_articol,
-            "titlu_articol": art.titlu_articol,
-            "continut_articol": art.continut_articol,
-            "capitol": art.capitol,
-            "sectiune": art.sectiune,
-            "alineat": art.alineat,
-            "litera": art.litera,
+            "articol_nr": art.articol_nr,
+            "articol_label": art.articol_label,
+            "text_articol": art.text_articol,
+            "titlu_nr": art.titlu_nr,
+            "titlu_denumire": art.titlu_denumire,
+            "capitol_nr": art.capitol_nr,
+            "capitol_denumire": art.capitol_denumire,
+            "sectiune_nr": art.sectiune_nr,
+            "sectiune_denumire": art.sectiune_denumire,
+            "subsectiune_nr": art.subsectiune_nr,
+            "subsectiune_denumire": art.subsectiune_denumire,
+            "ordine": art.ordine,
             "issue": art.issue,  # Current label (may be null)
             "explicatie": art.explicatie,  # Current explanation (may be null)
+            "metadate": art.metadate,  # AI-generated summary (may be null)
         }
         for art in articole
     ]
