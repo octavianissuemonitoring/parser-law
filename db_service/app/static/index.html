@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legislație - Management & Vizualizare</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            background: transparent;
+            font-size: 1.1em;
+        }
+        
+        .tab:hover {
+            background: #e9ecef;
+        }
+        
+        .tab.active {
+            background: white;
+            border-bottom: 3px solid #667eea;
+            color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.3s;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input[type="text"], input[type="url"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border 0.3s;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85em;
+        }
+        
+        .links-list {
+            list-style: none;
+            margin-top: 20px;
+        }
+        
+        .link-item {
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        
+        .link-item:hover {
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+        
+        .link-url {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .badge-count {
+            background: #667eea;
+            color: white;
+        }
+        
+        .acts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .act-card {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .act-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateY(-3px);
+        }
+        
+        .btn-delete-act {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        
+        .btn-delete-act:hover {
+            background: #c82333;
+            transform: scale(1.05);
+        }
+        
+        .act-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .act-meta {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .act-meta-item {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        .act-meta-item strong {
+            color: #333;
+        }
+        
+        .act-summary {
+            color: #6c757d;
+            font-size: 0.95em;
+            line-height: 1.5;
+            margin-top: 10px;
+        }
+        
+        .act-categories {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .categories-label {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+        
+        .category-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .category-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+        
+        .category-tag .remove-cat {
+            cursor: pointer;
+            font-weight: bold;
+            padding: 0 3px;
+            margin-left: 3px;
+        }
+        
+        .category-tag .remove-cat:hover {
+            color: #ffcccc;
+        }
+        
+        .btn-manage-categories {
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 15px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-manage-categories:hover {
+            background: #218838;
+            transform: scale(1.05);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .modal-header h2 {
+            color: #333;
+            font-size: 1.5em;
+        }
+        
+        .close-modal {
+            font-size: 2em;
+            color: #999;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        
+        .close-modal:hover {
+            color: #333;
+        }
+        
+        .category-select-container {
+            margin-bottom: 20px;
+        }
+        
+        .category-checkbox-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .category-checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        
+        .category-checkbox-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .category-checkbox-item input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .category-checkbox-item label {
+            cursor: pointer;
+            flex: 1;
+            margin: 0;
+        }
+        
+        .no-categories-message {
+            text-align: center;
+            padding: 30px;
+            color: #6c757d;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filters input, .filters select {
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 0.95em;
+        }
+        
+        .act-structure {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        
+        .chapter {
+            margin-bottom: 20px;
+        }
+        
+        .chapter-title {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        
+        .chapter-title:hover {
+            text-decoration: underline;
+        }
+        
+        .article-list {
+            list-style: none;
+            padding-left: 20px;
+        }
+        
+        .article-item {
+            padding: 8px;
+            border-left: 3px solid #667eea;
+            margin-bottom: 5px;
+            padding-left: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .article-item:hover {
+            background: white;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 Legislație România</h1>
+            <p>Management & Vizualizare Acte Normative</p>
+        </header>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('links')">
+                🔗 Linkuri Legislație
+            </button>
+            <button class="tab" onclick="switchTab('acts')">
+                📋 Acte Normative
+            </button>
+            <button class="tab" onclick="switchTab('index')">
+                📑 Index Structurat
+            </button>
+            <button class="tab" onclick="switchTab('stats')">
+                📊 Statistici
+            </button>
+        </div>
+        
+        <!-- Tab 1: Links Management -->
+        <div id="links-tab" class="tab-content active">
+            <h2>Adaugă Link Legislație</h2>
+            <form id="add-link-form">
+                <div class="form-group">
+                    <label for="link-url">URL Legislație *</label>
+                    <input type="url" id="link-url" placeholder="https://legislatie.just.ro/..." required>
+                </div>
+                <div class="form-group">
+                    <label for="link-description">Descriere (opțional)</label>
+                    <textarea id="link-description" placeholder="Ex: Legea nr. 123/2024 - Codul Fiscal"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">➕ Adaugă Link</button>
+            </form>
+            
+            <div id="link-alert"></div>
+            
+            <h3 style="margin-top: 40px;">Linkuri Existente</h3>
+            <div id="links-loading" class="loading">
+                <div class="spinner"></div>
+                <p>Se încarcă linkurile...</p>
+            </div>
+            <ul id="links-list" class="links-list"></ul>
+        </div>
+        
+        <!-- Tab 2: Acts List -->
+        <div id="acts-tab" class="tab-content">
+            <div class="filters">
+                <input type="text" id="search-acts" placeholder="🔍 Caută după titlu, număr, an...">
+                <select id="filter-type">
+                    <option value="">Toate tipurile</option>
+                    <option value="LEGE">Lege</option>
+                    <option value="OUG">OUG</option>
+                    <option value="HG">HG</option>
+                    <option value="ORDONANTA">Ordonanță</option>
+                </select>
+                <select id="sort-acts">
+                    <option value="date-desc">Data (mai recente)</option>
+                    <option value="date-asc">Data (mai vechi)</option>
+                    <option value="number-desc">Număr (desc)</option>
+                    <option value="number-asc">Număr (asc)</option>
+                </select>
+            </div>
+            
+            <div class="view-toggle">
+                <button class="btn btn-secondary" onclick="toggleView('grid')">🎴 Grid</button>
+                <button class="btn btn-secondary" onclick="toggleView('list')">📃 Listă</button>
+            </div>
+            
+            <div id="acts-loading" class="loading">
+                <div class="spinner"></div>
+                <p>Se încarcă actele normative...</p>
+            </div>
+            <div id="acts-container" class="acts-grid"></div>
+        </div>
+        
+        <!-- Tab 3: Structured Index -->
+        <div id="index-tab" class="tab-content">
+            <h2>Index Structurat - Capitole & Articole</h2>
+            <div class="filters">
+                <select id="index-act-select">
+                    <option value="">Selectează un act normativ...</option>
+                </select>
+            </div>
+            <div id="index-loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Se încarcă structura...</p>
+            </div>
+            <div id="index-container"></div>
+        </div>
+        
+        <!-- Tab 4: Statistics -->
+        <div id="stats-tab" class="tab-content">
+            <h2>Statistici Legislație</h2>
+            <div id="stats-loading" class="loading">
+                <div class="spinner"></div>
+                <p>Se încarcă statistici...</p>
+            </div>
+            <div id="stats-container"></div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = window.location.origin + '/api/v1';
+        
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Load data when switching tabs
+            if (tabName === 'links') loadLinks();
+            if (tabName === 'acts') loadActs();
+            if (tabName === 'index') loadActsForIndex();
+            if (tabName === 'stats') loadStats();
+        }
+        
+        // Add link form
+        document.getElementById('add-link-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('link-url').value;
+            const description = document.getElementById('link-description').value;
+            
+            const alertDiv = document.getElementById('link-alert');
+            
+            try {
+                const response = await fetch(`${API_BASE}/links/`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url, description})
+                });
+                
+                if (response.ok) {
+                    alertDiv.innerHTML = '<div class="alert alert-success">✓ Link adăugat cu succes!</div>';
+                    document.getElementById('add-link-form').reset();
+                    loadLinks();
+                } else {
+                    const error = await response.json();
+                    alertDiv.innerHTML = `<div class="alert alert-error">✗ Eroare: ${error.detail}</div>`;
+                }
+            } catch (error) {
+                alertDiv.innerHTML = `<div class="alert alert-error">✗ Eroare de conexiune</div>`;
+            }
+            
+            setTimeout(() => alertDiv.innerHTML = '', 5000);
+        });
+        
+        // Process link (scrape + import)
+        async function processLink(url) {
+            if (!confirm(`Începi procesarea pentru:\n${url}\n\nAcest proces poate dura câteva minute.`)) {
+                return;
+            }
+            
+            const alertDiv = document.getElementById('link-alert');
+            alertDiv.innerHTML = '<div class="alert alert-info">⏳ Se procesează linkul...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/links/process?url=${encodeURIComponent(url)}`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alertDiv.innerHTML = '<div class="alert alert-success">✓ Procesare pornită! Verifică tab-ul "Acte Normative" după câteva minute.</div>';
+                    
+                    // Trigger import after a delay
+                    setTimeout(async () => {
+                        await fetch(`${API_BASE}/acte/import?rezultate_dir=/app/rezultate`, {method: 'POST'});
+                        alertDiv.innerHTML = '<div class="alert alert-success">✓ Import finalizat! Reîmprospătează lista de acte.</div>';
+                        setTimeout(() => alertDiv.innerHTML = '', 5000);
+                    }, 30000); // Wait 30 seconds for scraper to finish
+                    
+                } else {
+                    const error = await response.json();
+                    alertDiv.innerHTML = `<div class="alert alert-error">✗ Eroare: ${error.detail}</div>`;
+                }
+            } catch (error) {
+                alertDiv.innerHTML = `<div class="alert alert-error">✗ Eroare de conexiune: ${error.message}</div>`;
+            }
+        }
+        
+        // Load links
+        async function loadLinks() {
+            document.getElementById('links-loading').style.display = 'block';
+            document.getElementById('links-list').innerHTML = '';
+            
+            try {
+                const response = await fetch(`${API_BASE}/links/?limit=100`);
+                const data = await response.json();
+                const links = data.items || data; // Support both formats
+                
+                document.getElementById('links-loading').style.display = 'none';
+                
+                if (links.length === 0) {
+                    document.getElementById('links-list').innerHTML = '<li style="padding: 20px; text-align: center; color: #6c757d;">Nu există linkuri adăugate</li>';
+                    return;
+                }
+                
+                links.forEach(link => {
+                    const li = document.createElement('li');
+                    li.className = 'link-item';
+                    
+                    // Status badge with color
+                    let statusBadge = '';
+                    let statusColor = '#6c757d';
+                    if (link.status === 'pending_scraping') {
+                        statusBadge = '⏳ Pending';
+                        statusColor = '#ffc107';
+                    } else if (link.status === 'processing') {
+                        statusBadge = '⚙️ Processing...';
+                        statusColor = '#17a2b8';
+                    } else if (link.status === 'completed') {
+                        statusBadge = '✅ Completed';
+                        statusColor = '#28a745';
+                    } else if (link.status === 'failed') {
+                        statusBadge = '❌ Failed';
+                        statusColor = '#dc3545';
+                    }
+                    
+                    li.innerHTML = `
+                        <div>
+                            <a href="${link.url}" target="_blank" class="link-url">${link.url}</a>
+                            <div style="margin-top: 5px; display: flex; gap: 10px; align-items: center;">
+                                <span style="background: ${statusColor}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.85em;">${statusBadge}</span>
+                                ${link.acte_count > 0 ? `<span class="badge badge-count">${link.acte_count} acte</span>` : ''}
+                            </div>
+                            ${link.error_message ? `<p style="margin-top: 5px; color: #dc3545; font-size: 0.85em;">Error: ${link.error_message}</p>` : ''}
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn btn-secondary btn-sm" onclick="processLink('${link.url}')">⚙️ Procesează</button>
+                        </div>
+                    `;
+                    document.getElementById('links-list').appendChild(li);
+                });
+            } catch (error) {
+                document.getElementById('links-loading').style.display = 'none';
+                document.getElementById('links-list').innerHTML = '<li style="padding: 20px; text-align: center; color: red;">Eroare la încărcarea linkurilor</li>';
+            }
+        }
+        
+        // Load acts
+        async function loadActs(search = '', type = '', sort = 'date-desc') {
+            document.getElementById('acts-loading').style.display = 'block';
+            document.getElementById('acts-container').innerHTML = '';
+            
+            try {
+                let url = `${API_BASE}/acte?limit=50`;
+                if (search) url += `&search=${encodeURIComponent(search)}`;
+                if (type) url += `&tip=${encodeURIComponent(type)}`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                let acts = data.items || data;
+                
+                // Sort
+                acts = sortActs(acts, sort);
+                
+                document.getElementById('acts-loading').style.display = 'none';
+                
+                if (acts.length === 0) {
+                    document.getElementById('acts-container').innerHTML = '<div style="padding: 40px; text-align: center; color: #6c757d;">Nu s-au găsit acte normative</div>';
+                    return;
+                }
+                
+                acts.forEach(async act => {
+                    const card = document.createElement('div');
+                    card.className = 'act-card';
+                    
+                    // Fetch categories for this act
+                    let categoriesHTML = '';
+                    try {
+                        const catResponse = await fetch(`${API_BASE}/categories/acts/${act.id}`);
+                        if (catResponse.ok) {
+                            const categories = await catResponse.json();
+                            if (categories && categories.length > 0) {
+                                categoriesHTML = `
+                                    <div class="act-categories">
+                                        <div class="categories-label">🏷️ Categorii:</div>
+                                        <div class="category-tags">
+                                            ${categories.map(cat => `
+                                                <span class="category-tag" style="background: ${cat.color || '#667eea'}">
+                                                    ${cat.icon || '📁'} ${cat.name}
+                                                    <span class="remove-cat" onclick="removeCategory(${act.id}, ${cat.id}, event)" title="Elimină categoria">×</span>
+                                                </span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        }
+                    } catch (error) {
+                        console.log('Nu s-au putut încărca categoriile pentru actul', act.id);
+                    }
+                    
+                    card.innerHTML = `
+                        <button class="btn-delete-act" onclick="deleteAct(${act.id}, event)" title="Șterge act">
+                            🗑️ Șterge
+                        </button>
+                        <div class="act-title">${act.titlu_act || 'Fără titlu'}</div>
+                        <div class="act-meta">
+                            <span class="act-meta-item"><strong>Nr:</strong> ${act.nr_act}</span>
+                            <span class="act-meta-item"><strong>An:</strong> ${act.an_act}</span>
+                            <span class="act-meta-item"><strong>Tip:</strong> ${act.tip || 'N/A'}</span>
+                            ${act.emitent ? `<span class="act-meta-item"><strong>Emitent:</strong> ${act.emitent}</span>` : ''}
+                        </div>
+                        <div class="act-summary">
+                            ${act.metadate ? (typeof act.metadate === 'string' ? act.metadate.substring(0, 150) + '...' : '') : 'Click pentru detalii...'}
+                        </div>
+                        ${categoriesHTML}
+                        <div style="margin-top: 15px;">
+                            <button class="btn-manage-categories" onclick="openCategoriesModal(${act.id}, event)">
+                                🏷️ Gestionează Categorii
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Click pe card (exclude butoanele)
+                    card.addEventListener('click', (e) => {
+                        if (!e.target.classList.contains('btn-delete-act') && 
+                            !e.target.classList.contains('btn-manage-categories') &&
+                            !e.target.classList.contains('remove-cat')) {
+                            showActDetails(act.id);
+                        }
+                    });
+                    
+                    document.getElementById('acts-container').appendChild(card);
+                });
+            } catch (error) {
+                document.getElementById('acts-loading').style.display = 'none';
+                document.getElementById('acts-container').innerHTML = '<div style="padding: 40px; text-align: center; color: red;">Eroare la încărcarea actelor</div>';
+            }
+        }
+        
+        function sortActs(acts, sortType) {
+            switch(sortType) {
+                case 'date-desc':
+                    return acts.sort((a, b) => b.an_act - a.an_act || b.nr_act - a.nr_act);
+                case 'date-asc':
+                    return acts.sort((a, b) => a.an_act - b.an_act || a.nr_act - b.nr_act);
+                case 'number-desc':
+                    return acts.sort((a, b) => b.nr_act - a.nr_act);
+                case 'number-asc':
+                    return acts.sort((a, b) => a.nr_act - b.nr_act);
+                default:
+                    return acts;
+            }
+        }
+        
+        function showActDetails(actId) {
+            window.open(`${API_BASE}/acte/${actId}`, '_blank');
+        }
+        
+        // Delete act from database
+        async function deleteAct(actId, event) {
+            // Stop propagation to prevent card click
+            event.stopPropagation();
+            
+            if (!confirm('Sigur doriți să ștergeți acest act normativ?\n\nAceastă acțiune va șterge și toate articolele asociate și este IREVERSIBILĂ!')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/acte/${actId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.status === 204 || response.ok) {
+                    alert('✅ Actul normativ a fost șters cu succes!');
+                    // Reload acts list
+                    loadActs();
+                    // Update stats
+                    loadStats();
+                } else {
+                    const error = await response.json();
+                    alert(`❌ Eroare la ștergere: ${error.detail || 'Eroare necunoscută'}`);
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('❌ Eroare la ștergere: ' + error.message);
+            }
+        }
+        
+        // Load acts for index dropdown
+        async function loadActsForIndex() {
+            try {
+                const response = await fetch(`${API_BASE}/acte?limit=100`);
+                const data = await response.json();
+                const acts = data.items || data;
+                
+                const select = document.getElementById('index-act-select');
+                select.innerHTML = '<option value="">Selectează un act normativ...</option>';
+                
+                acts.forEach(act => {
+                    const option = document.createElement('option');
+                    option.value = act.id;
+                    option.textContent = `${act.tip || ''} ${act.nr_act}/${act.an_act} - ${act.titlu_act || ''}`.substring(0, 100);
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading acts for index:', error);
+            }
+        }
+        
+        // Show structured index
+        document.getElementById('index-act-select').addEventListener('change', async (e) => {
+            const actId = e.target.value;
+            if (!actId) {
+                document.getElementById('index-container').innerHTML = '';
+                return;
+            }
+            
+            document.getElementById('index-loading').style.display = 'block';
+            document.getElementById('index-container').innerHTML = '';
+            
+            try {
+                // Fetch act details
+                const actResponse = await fetch(`${API_BASE}/acte/${actId}`);
+                const act = await actResponse.json();
+                
+                // Fetch articles for this act
+                const articlesResponse = await fetch(`${API_BASE}/articole?act_id=${actId}&limit=500`);
+                const articlesData = await articlesResponse.json();
+                act.articole = articlesData.items || articlesData;
+                
+                document.getElementById('index-loading').style.display = 'none';
+                
+                // Build structured index
+                const structure = buildActStructure(act);
+                document.getElementById('index-container').innerHTML = structure;
+            } catch (error) {
+                console.error('Error loading structure:', error);
+                document.getElementById('index-loading').style.display = 'none';
+                document.getElementById('index-container').innerHTML = '<div style="padding: 20px; color: red;">Eroare la încărcarea structurii</div>';
+            }
+        });
+        
+        function buildActStructure(act) {
+            let html = `
+                <h3>${act.titlu_act || 'Fără titlu'}</h3>
+                <p><strong>Nr:</strong> ${act.nr_act || 'N/A'}/${act.an_act || 'N/A'} | <strong>Tip:</strong> ${act.tip_act || 'N/A'}</p>
+                <div class="act-structure">
+            `;
+            
+            if (act.articole && act.articole.length > 0) {
+                // Group by chapter if available
+                const chapters = {};
+                act.articole.forEach(art => {
+                    const chapter = art.capitol_denumire || 'Fără capitol';
+                    if (!chapters[chapter]) chapters[chapter] = [];
+                    chapters[chapter].push(art);
+                });
+                
+                Object.keys(chapters).forEach(chapterName => {
+                    html += `
+                        <div class="chapter">
+                            <div class="chapter-title">📌 ${chapterName}</div>
+                            <ul class="article-list">
+                    `;
+                    
+                    chapters[chapterName].forEach(art => {
+                        const preview = art.text_articol ? art.text_articol.substring(0, 100) + '...' : '';
+                        html += `
+                            <li class="article-item" onclick="showArticleContent(${art.id})" title="${preview}">
+                                <strong>${art.articol_label || 'Art. ' + art.articol_nr}</strong>
+                                ${preview ? ` - ${preview}` : ''}
+                            </li>
+                        `;
+                    });
+                    
+                    html += `</ul></div>`;
+                });
+            } else {
+                html += '<p style="padding: 20px; color: #6c757d;">Nu există articole disponibile</p>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function showArticleContent(articleId) {
+            window.open(`${API_BASE}/articole/${articleId}`, '_blank');
+        }
+        
+        // Load statistics
+        async function loadStats() {
+            document.getElementById('stats-loading').style.display = 'block';
+            document.getElementById('stats-container').innerHTML = '';
+            
+            try {
+                const response = await fetch(`${API_BASE}/links/stats`);
+                const stats = await response.json();
+                
+                document.getElementById('stats-loading').style.display = 'none';
+                
+                let html = `
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.total_acts}</div>
+                            <div class="stat-label">Acte Normative</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.total_unique_links}</div>
+                            <div class="stat-label">Surse Unice</div>
+                        </div>
+                    </div>
+                    
+                    <h3>Top Surse</h3>
+                    <ul class="links-list">
+                `;
+                
+                stats.top_sources.forEach(source => {
+                    html += `
+                        <li class="link-item">
+                            <a href="${source.url}" target="_blank" class="link-url">${source.url}</a>
+                            <span class="badge badge-count">${source.acts_count} acte</span>
+                        </li>
+                    `;
+                });
+                
+                html += '</ul>';
+                document.getElementById('stats-container').innerHTML = html;
+            } catch (error) {
+                document.getElementById('stats-loading').style.display = 'none';
+                document.getElementById('stats-container').innerHTML = '<div style="padding: 40px; text-align: center; color: red;">Eroare la încărcarea statisticilor</div>';
+            }
+        }
+        
+        function toggleView(view) {
+            const container = document.getElementById('acts-container');
+            if (view === 'grid') {
+                container.className = 'acts-grid';
+            } else {
+                container.className = 'acts-list';
+            }
+        }
+        
+        // Filters
+        document.getElementById('search-acts')?.addEventListener('input', (e) => {
+            const search = e.target.value;
+            const type = document.getElementById('filter-type').value;
+            const sort = document.getElementById('sort-acts').value;
+            loadActs(search, type, sort);
+        });
+        
+        document.getElementById('filter-type')?.addEventListener('change', (e) => {
+            const search = document.getElementById('search-acts').value;
+            const type = e.target.value;
+            const sort = document.getElementById('sort-acts').value;
+            loadActs(search, type, sort);
+        });
+        
+        document.getElementById('sort-acts')?.addEventListener('change', (e) => {
+            const search = document.getElementById('search-acts').value;
+            const type = document.getElementById('filter-type').value;
+            const sort = e.target.value;
+            loadActs(search, type, sort);
+        });
+        
+        // Categories Management
+        let currentActIdForCategories = null;
+        let allCategories = [];
+        
+        async function openCategoriesModal(actId, event) {
+            event.stopPropagation();
+            currentActIdForCategories = actId;
+            
+            const modal = document.getElementById('categories-modal');
+            modal.style.display = 'block';
+            
+            // Load all available categories
+            await loadAllCategories();
+            
+            // Load current categories for this act
+            await loadActCategoriesForModal(actId);
+        }
+        
+        function closeCategoriesModal() {
+            document.getElementById('categories-modal').style.display = 'none';
+            currentActIdForCategories = null;
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('categories-modal');
+            if (event.target === modal) {
+                closeCategoriesModal();
+            }
+        }
+        
+        async function loadAllCategories() {
+            try {
+                const response = await fetch(`${API_BASE}/categories?active_only=true`);
+                if (response.ok) {
+                    allCategories = await response.json();
+                } else {
+                    allCategories = [];
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                allCategories = [];
+            }
+        }
+        
+        async function loadActCategoriesForModal(actId) {
+            const container = document.getElementById('category-checkbox-list');
+            
+            if (allCategories.length === 0) {
+                container.innerHTML = `
+                    <div class="no-categories-message">
+                        <p>📭 Nu există categorii disponibile.</p>
+                        <p style="margin-top: 10px; font-size: 0.9em;">
+                            Categoriile se vor sincroniza automat de pe Issue Monitoring.<br>
+                            Până atunci, lista va rămâne goală.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Get current categories for this act
+            let currentCategories = [];
+            try {
+                const response = await fetch(`${API_BASE}/categories/acts/${actId}`);
+                if (response.ok) {
+                    currentCategories = await response.json();
+                }
+            } catch (error) {
+                console.log('Could not load act categories');
+            }
+            
+            const currentCategoryIds = currentCategories.map(cat => cat.id);
+            
+            // Build checkbox list
+            container.innerHTML = allCategories.map(cat => `
+                <div class="category-checkbox-item">
+                    <input type="checkbox" 
+                           id="cat-${cat.id}" 
+                           value="${cat.id}"
+                           ${currentCategoryIds.includes(cat.id) ? 'checked' : ''}>
+                    <label for="cat-${cat.id}">
+                        ${cat.icon || '📁'} ${cat.name}
+                        ${cat.description ? `<span style="color: #999; font-size: 0.9em;"> - ${cat.description}</span>` : ''}
+                    </label>
+                </div>
+            `).join('');
+        }
+        
+        async function saveActCategories() {
+            if (!currentActIdForCategories) return;
+            
+            // Get selected category IDs
+            const checkboxes = document.querySelectorAll('#category-checkbox-list input[type="checkbox"]:checked');
+            const selectedCategoryIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            
+            try {
+                // Replace all categories for this act
+                const response = await fetch(`${API_BASE}/categories/acts/${currentActIdForCategories}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({category_ids: selectedCategoryIds})
+                });
+                
+                if (response.ok) {
+                    alert('✅ Categoriile au fost salvate cu succes!');
+                    closeCategoriesModal();
+                    // Reload acts to show updated categories
+                    const search = document.getElementById('search-acts')?.value || '';
+                    const type = document.getElementById('filter-type')?.value || '';
+                    const sort = document.getElementById('sort-acts')?.value || 'date-desc';
+                    loadActs(search, type, sort);
+                } else {
+                    const error = await response.json();
+                    alert(`❌ Eroare la salvare: ${error.detail || 'Eroare necunoscută'}`);
+                }
+            } catch (error) {
+                console.error('Error saving categories:', error);
+                alert('❌ Eroare la salvare: ' + error.message);
+            }
+        }
+        
+        async function removeCategory(actId, categoryId, event) {
+            event.stopPropagation();
+            
+            if (!confirm('Sigur doriți să eliminați această categorie?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/categories/acts/${actId}`, {
+                    method: 'DELETE',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({category_ids: [categoryId]})
+                });
+                
+                if (response.ok) {
+                    // Reload acts to show updated categories
+                    const search = document.getElementById('search-acts')?.value || '';
+                    const type = document.getElementById('filter-type')?.value || '';
+                    const sort = document.getElementById('sort-acts')?.value || 'date-desc';
+                    loadActs(search, type, sort);
+                } else {
+                    const error = await response.json();
+                    alert(`❌ Eroare: ${error.detail || 'Eroare necunoscută'}`);
+                }
+            } catch (error) {
+                console.error('Error removing category:', error);
+                alert('❌ Eroare: ' + error.message);
+            }
+        }
+        
+        // Initial load
+        loadLinks();
+    </script>
+    
+    <!-- Modal pentru gestionarea categoriilor -->
+    <div id="categories-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏷️ Gestionare Categorii</h2>
+                <span class="close-modal" onclick="closeCategoriesModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="category-select-container">
+                    <label class="categories-label">Selectează categorii pentru acest act:</label>
+                    <div id="category-checkbox-list" class="category-checkbox-list">
+                        <div class="loading-spinner"></div>
+                        <p style="text-align: center;">Se încarcă categoriile...</p>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeCategoriesModal()">Anulează</button>
+                    <button class="btn btn-primary" onclick="saveActCategories()">💾 Salvează</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

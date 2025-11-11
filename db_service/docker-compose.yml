@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: legislatie_postgres
+    environment:
+      POSTGRES_DB: monitoring_platform
+      POSTGRES_USER: legislatie_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-legislatie_pass_2024}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U legislatie_user -d monitoring_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - legislatie_network
+
+  # FastAPI Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: legislatie_api
+    environment:
+      DATABASE_URL: postgresql://legislatie_user:${DB_PASSWORD:-legislatie_pass_2024}@postgres:5432/monitoring_platform
+      DB_SCHEMA: legislatie
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      API_RELOAD: "true"
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ../data/rezultate:/app/rezultate  # Mount rezultate pentru import (read-write, shared with scheduler)
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - legislatie_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # pgAdmin (optional - pentru management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: legislatie_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@legislatie.ro}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - legislatie_network
+    profiles:
+      - tools  # Rulează doar cu: docker-compose --profile tools up
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  legislatie_network:
+    driver: bridge

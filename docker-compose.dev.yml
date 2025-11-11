@@ -1,0 +1,271 @@
+version: '3.8'
+
+# ============================================================================
+# Parser Law - Local Development Environment
+# ============================================================================
+# 
+# This docker-compose configuration is for LOCAL DEVELOPMENT only.
+# It mirrors the VPS production setup but with dev-friendly settings:
+# - Hot reload enabled (volume mounts for code)
+# - Ports exposed to host
+# - Debug logging enabled
+# - No nginx (direct API access)
+# 
+# For production, use: docker-compose.yml
+# 
+# USAGE:
+#   docker-compose -f docker-compose.dev.yml up -d
+#   docker-compose -f docker-compose.dev.yml logs -f
+#   docker-compose -f docker-compose.dev.yml down
+# 
+# ============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # PostgreSQL Database
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: parser-law-postgres
+    restart: unless-stopped
+    
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-monitoring_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-parser_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+      TZ: "Europe/Bucharest"
+    
+    ports:
+      - "5432:5432"  # Expose to host for direct access
+    
+    volumes:
+      # Persistent data
+      - postgres_data:/var/lib/postgresql/data
+      
+      # Initialization scripts
+      - ./db_service/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./db_service/create_tables.sql:/docker-entrypoint-initdb.d/02-create_tables.sql:ro
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-parser_user} -d ${POSTGRES_DB:-monitoring_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    networks:
+      - parser-law-network
+
+  # --------------------------------------------------------------------------
+  # FastAPI Application
+  # --------------------------------------------------------------------------
+  api:
+    build:
+      context: ./db_service
+      dockerfile: Dockerfile
+      args:
+        - PYTHON_VERSION=3.11
+    
+    container_name: parser-law-api
+    restart: unless-stopped
+    
+    environment:
+      # Database connection (use container name, not localhost)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-parser_user}:${POSTGRES_PASSWORD:-change_me}@postgres:5432/${POSTGRES_DB:-monitoring_platform}
+      POSTGRES_HOST: postgres  # Container name
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-monitoring_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-parser_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-legislatie}
+      
+      # API settings
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      API_VERSION: ${API_VERSION:-1.0.0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      
+      # Development mode
+      ENVIRONMENT: development
+      DEBUG: "true"
+      
+      # CORS for local frontend development
+      CORS_ORIGINS: http://localhost:3000,http://localhost:8000
+      
+      TZ: "Europe/Bucharest"
+    
+    ports:
+      - "8000:8000"  # API accessible at http://localhost:8000
+    
+    volumes:
+      # Hot reload: mount source code
+      - ./db_service/app:/app/app:ro
+      
+      # Logs directory
+      - ./logs:/app/logs
+      
+      # Alembic migrations
+      - ./db_service/alembic:/app/alembic:ro
+      - ./db_service/alembic.ini:/app/alembic.ini:ro
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    networks:
+      - parser-law-network
+    
+    command: >
+      sh -c "
+        echo '🚀 Starting API in development mode...'
+        && echo '📦 Waiting for database...'
+        && sleep 5
+        && echo '🔄 Running database migrations...'
+        && alembic upgrade head || echo '⚠️  Migrations failed (might be OK if DB already initialized)'
+        && echo '✅ Starting Uvicorn with hot reload...'
+        && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level info
+      "
+
+  # --------------------------------------------------------------------------
+  # Scheduler (Background Tasks)
+  # --------------------------------------------------------------------------
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    
+    container_name: parser-law-scheduler
+    restart: unless-stopped
+    
+    environment:
+      # Database connection
+      DATABASE_URL: postgresql://${POSTGRES_USER:-parser_user}:${POSTGRES_PASSWORD:-change_me}@postgres:5432/${POSTGRES_DB:-monitoring_platform}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-monitoring_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-parser_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      
+      # Scheduler settings
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
+      SCHEDULER_INTERVAL_HOURS: ${SCHEDULER_INTERVAL_HOURS:-24}
+      
+      # Development mode
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      
+      TZ: "Europe/Bucharest"
+    
+    volumes:
+      # Hot reload for scheduler code
+      - ./scheduler.py:/app/scheduler.py:ro
+      - ./scraper_legislatie.py:/app/scraper_legislatie.py:ro
+      - ./hybrid_parser.py:/app/hybrid_parser.py:ro
+      
+      # Logs
+      - ./logs:/app/logs
+      
+      # Data directories
+      - ./data/rezultate:/app/rezultate
+      - ./data/export:/app/export_csv
+    
+    depends_on:
+      - api
+    
+    networks:
+      - parser-law-network
+    
+    # Disable scheduler in dev by default (uncomment to enable)
+    # command: python scheduler.py
+    command: >
+      sh -c "
+        echo '⏰ Scheduler container started (disabled in dev mode)'
+        && echo 'To enable: uncomment command in docker-compose.dev.yml'
+        && tail -f /dev/null
+      "
+
+# ==============================================================================
+# Volumes
+# ==============================================================================
+volumes:
+  postgres_data:
+    driver: local
+    name: parser-law-postgres-data
+
+# ==============================================================================
+# Networks
+# ==============================================================================
+networks:
+  parser-law-network:
+    driver: bridge
+    name: parser-law-network
+
+# ==============================================================================
+# USAGE NOTES
+# ==============================================================================
+# 
+# 1. First Time Setup:
+#    docker-compose -f docker-compose.dev.yml up -d
+#    docker-compose -f docker-compose.dev.yml logs -f api
+# 
+# 2. Check Health:
+#    curl http://localhost:8000/health
+#    curl http://localhost:8000/docs  # OpenAPI docs
+# 
+# 3. View Logs:
+#    docker-compose -f docker-compose.dev.yml logs -f
+#    docker-compose -f docker-compose.dev.yml logs -f api
+#    docker-compose -f docker-compose.dev.yml logs -f postgres
+# 
+# 4. Restart Single Service:
+#    docker-compose -f docker-compose.dev.yml restart api
+# 
+# 5. Stop All:
+#    docker-compose -f docker-compose.dev.yml down
+# 
+# 6. Wipe Database (DANGER):
+#    docker-compose -f docker-compose.dev.yml down -v
+#    docker volume rm parser-law-postgres-data
+# 
+# 7. Access Database Directly:
+#    docker exec -it parser-law-postgres psql -U parser_user -d monitoring_platform
+# 
+# 8. Run Migrations Manually:
+#    docker exec -it parser-law-api alembic upgrade head
+# 
+# 9. Check Container Status:
+#    docker-compose -f docker-compose.dev.yml ps
+# 
+# 10. Execute Command in Container:
+#     docker exec -it parser-law-api /bin/sh
+# 
+# ==============================================================================
+# DIFFERENCES FROM PRODUCTION (docker-compose.yml)
+# ==============================================================================
+# 
+# Local Dev:
+#   - Hot reload enabled (code volumes mounted)
+#   - Ports exposed to host (5432, 8000)
+#   - Debug logging enabled
+#   - Scheduler disabled by default
+#   - No nginx (direct API access)
+#   - CORS permissive
+#   - Container names: parser-law-* (to avoid conflicts)
+# 
+# Production:
+#   - No code volumes (built into image)
+#   - Ports not exposed (nginx only)
+#   - Production logging
+#   - Scheduler always running
+#   - Nginx reverse proxy
+#   - CORS restricted
+#   - Container names: legislatie_* (VPS standard)
+# 
+# ==============================================================================

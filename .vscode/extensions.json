@@ -1,0 +1,36 @@
+{
+  "recommendations": [
+    // Python Development
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+    "ms-python.isort",
+    
+    // Docker & Containers
+    "ms-azuretools.vscode-docker",
+    
+    // Git
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    
+    // AI Assistance
+    "github.copilot",
+    "github.copilot-chat",
+    
+    // API Testing
+    "humao.rest-client",
+    
+    // Database
+    "ckolkman.vscode-postgres",
+    
+    // Markdown
+    "yzhang.markdown-all-in-one",
+    
+    // YAML
+    "redhat.vscode-yaml",
+    
+    // General Productivity
+    "editorconfig.editorconfig",
+    "gruntfuggly.todo-tree"
+  ]
+}
