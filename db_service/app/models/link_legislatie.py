@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, Integer, DateTime, Enum as SQLEnum
+from sqlalchemy import String, Integer, DateTime, Enum as SQLEnum, func
 from sqlalchemy.orm import Mapped, mapped_column
 import enum
 
@@ -38,13 +38,13 @@ class LinkLegislatie(Base):
         DateTime,
         nullable=False,
         default=datetime.utcnow,
-        server_default="CURRENT_TIMESTAMP"
+        server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
         default=datetime.utcnow,
-        server_default="CURRENT_TIMESTAMP",
+        server_default=func.now(),
         onupdate=datetime.utcnow
     )
     last_scraped_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

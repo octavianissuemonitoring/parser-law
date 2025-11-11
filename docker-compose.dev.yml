@@ -108,8 +108,8 @@ services:
       # Logs directory
       - ./logs:/app/logs
       
-      # Alembic migrations
-      - ./db_service/alembic:/app/alembic:ro
+      # Alembic migrations (writable for generation)
+      - ./db_service/alembic:/app/alembic
       - ./db_service/alembic.ini:/app/alembic.ini:ro
     
     depends_on:
