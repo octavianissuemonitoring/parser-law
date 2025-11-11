@@ -396,10 +396,12 @@ async def export_act_for_analysis(
             "tip_act": act.tip_act,
             "nr_act": act.nr_act,
             "an_act": act.an_act,
+            "data_act": act.data_act.isoformat() if act.data_act else None,
             "titlu_act": act.titlu_act,
             "url_legislatie": act.url_legislatie,
             "emitent_act": act.emitent_act,
-            "data_publicare": act.data_publicare.isoformat() if act.data_publicare else None,
+            "mof_nr": act.mof_nr,
+            "mof_data": act.mof_data.isoformat() if act.mof_data else None,
             "sursa_link_id": act.sursa_link_id,
         }
     
