@@ -3,33 +3,32 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app:/app/src
+
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (for caching)
-COPY requirements.txt .
+COPY db_service/requirements.txt /app/requirements.txt
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy application code
-COPY ./app /app/app
-COPY ./alembic /app/alembic
-COPY alembic.ini /app/
+# Copy application code (API)
+COPY db_service/app /app/app
+COPY db_service/alembic /app/alembic
+COPY db_service/alembic.ini /app/alembic.ini
 
-# Copy scraper files (must be in same directory as Dockerfile)
-COPY scraper_legislatie.py /app/
-COPY html_parser.py /app/
-COPY hybrid_parser.py /app/
-COPY quality_checker.py /app/
-COPY cleanup_files.py /app/
-COPY config.py /app/
+# Copy shared scraper library (v2 layout)
+COPY src /app/src
 
-# Create rezultate directory
-RUN mkdir -p /app/rezultate
+# Create output and logs directories
+RUN mkdir -p /app/rezultate /app/logs
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app

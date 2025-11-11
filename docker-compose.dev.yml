@@ -61,8 +61,8 @@ services:
   # --------------------------------------------------------------------------
   api:
     build:
-      context: ./db_service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: db_service/Dockerfile
       args:
         - PYTHON_VERSION=3.11
     
@@ -88,18 +88,19 @@ services:
       # Development mode
       ENVIRONMENT: development
       DEBUG: "true"
-      
-      # CORS for local frontend development
-      CORS_ORIGINS: http://localhost:3000,http://localhost:8000
-      
+
+      # CORS for local frontend development (Pydantic expects list; provide JSON array string)
+      CORS_ORIGINS: '["http://localhost:3000","http://localhost:8000"]'
+
       TZ: "Europe/Bucharest"
     
     ports:
       - "8000:8000"  # API accessible at http://localhost:8000
     
     volumes:
-      # Hot reload: mount source code
+      # Hot reload: mount API source code & shared src modules
       - ./db_service/app:/app/app:ro
+      - ./src:/app/src:ro
       
       # Logs directory
       - ./logs:/app/logs
@@ -122,16 +123,17 @@ services:
     networks:
       - parser-law-network
     
-    command: >
-      sh -c "
-        echo '🚀 Starting API in development mode...'
-        && echo '📦 Waiting for database...'
-        && sleep 5
-        && echo '🔄 Running database migrations...'
-        && alembic upgrade head || echo '⚠️  Migrations failed (might be OK if DB already initialized)'
-        && echo '✅ Starting Uvicorn with hot reload...'
-        && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level info
-      "
+    command:
+      - sh
+      - -lc
+      - |
+        echo "Starting API in development mode...";
+        echo "Waiting for database...";
+        sleep 5;
+        echo "Running database migrations...";
+        alembic upgrade head || echo "Migrations failed (might be OK if DB already initialized)";
+        echo "Starting Uvicorn with hot reload...";
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level info
 
   # --------------------------------------------------------------------------
   # Scheduler (Background Tasks)

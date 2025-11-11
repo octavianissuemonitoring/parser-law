@@ -3,6 +3,7 @@ Configuration settings for the database service.
 """
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import json
 
 
 class Settings(BaseSettings):
@@ -31,7 +32,8 @@ class Settings(BaseSettings):
     db_echo: bool = False  # Log SQL queries
     
     # CORS Settings
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8080"]
+    # Allow string in env (comma-separated or JSON) so we normalize below
+    cors_origins: Optional[str] = None
     cors_allow_credentials: bool = True
     cors_allow_methods: list[str] = ["*"]
     cors_allow_headers: list[str] = ["*"]
@@ -70,3 +72,23 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
+# Post-process cors_origins to a list[str]
+try:
+    cors_val = settings.cors_origins
+    if cors_val is None:
+        # Use sensible defaults
+        settings.cors_origins = ["http://localhost:3000", "http://localhost:8080"]
+    elif isinstance(cors_val, str):
+        cors_val = cors_val.strip()
+        if cors_val.startswith('['):
+            # JSON array string
+            settings.cors_origins = json.loads(cors_val)
+        elif cors_val == '':
+            settings.cors_origins = []
+        else:
+            # Comma-separated
+            settings.cors_origins = [s.strip() for s in cors_val.split(',') if s.strip()]
+except Exception:
+    # If normalization fails, fall back to default
+    settings.cors_origins = ["http://localhost:3000", "http://localhost:8080"]
