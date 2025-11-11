@@ -402,7 +402,7 @@ async def export_act_for_analysis(
             "emitent_act": act.emitent_act,
             "mof_nr": act.mof_nr,
             "mof_data": act.mof_data.isoformat() if act.mof_data else None,
-            "sursa_link_id": act.sursa_link_id,
+            "mof_an": act.mof_an,
         }
     
     # Articles with all fields needed for analysis
