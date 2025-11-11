@@ -442,21 +442,26 @@ Helps onboard new developers.
 
 ## Version Numbering (Semantic Versioning)
 
-### Format: `MAJOR.MINOR.PATCH`
+### Format: `MAJOR.MINOR.PATCH[-PRERELEASE]`
 
 - **MAJOR** (1.x.x): Breaking changes, API incompatible
 - **MINOR** (x.1.x): New features, backwards compatible
 - **PATCH** (x.x.1): Bug fixes only
+- **PRERELEASE** (x.x.x-rc.N): Release candidates for testing
 
 ### Examples
 
 - `v1.0.0` → `v1.1.0`: Added category search (new feature)
 - `v1.1.0` → `v1.1.1`: Fixed parser bug (bugfix)
-- `v1.1.1` → `v2.0.0`: Changed API response format (breaking)
+- `v1.1.1` → `v1.2.0-rc.1`: Testing new export feature (release candidate)
+- `v1.2.0-rc.1` → `v1.2.0`: Stable release after testing
+- `v1.2.0` → `v2.0.0`: Changed API response format (breaking)
 
 ### Current Version
 ```
 v1.0.0 (stable baseline)
+  ↓
+v1.1.0-rc.1 (release candidate)
   ↓
 v1.1.0 (next release with refactoring)
   ↓
@@ -464,6 +469,20 @@ v1.2.0 (categories + export features)
   ↓
 v2.0.0 (future: API v2)
 ```
+
+### Multi-Version Deployment
+
+See **`RELEASE_MANAGEMENT.md`** for complete strategy:
+- Multiple clients on different versions simultaneously
+- Docker image tagging strategy
+- Rollback procedures
+- Database schema versioning
+- Automated release process
+
+**Example**:
+- Client A → `v1.2.0` (stable, conservative)
+- Client B → `v1.3.0` (latest features)
+- Staging → `v1.4.0-rc.1` (testing next release)
 
 ---
 
