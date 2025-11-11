@@ -1,0 +1,44 @@
+            constraint_name             |           table_name           | constraint_type |                                                                                   definition                                                                                   
+----------------------------------------+--------------------------------+-----------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ acte_categories_act_id_fkey            | legislatie.acte_categories     | f               | FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+ acte_categories_category_id_fkey       | legislatie.acte_categories     | f               | FOREIGN KEY (category_id) REFERENCES legislatie.categories(id) ON DELETE CASCADE
+ acte_categories_pkey                   | legislatie.acte_categories     | p               | PRIMARY KEY (act_id, category_id)
+ acte_issues_adaugat_de_check           | legislatie.acte_issues         | c               | CHECK (((adaugat_de)::text = ANY ((ARRAY['ai'::character varying, 'manual'::character varying])::text[])))
+ acte_issues_act_id_fkey                | legislatie.acte_issues         | f               | FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+ acte_issues_issue_id_fkey              | legislatie.acte_issues         | f               | FOREIGN KEY (issue_id) REFERENCES legislatie.issues(id) ON DELETE CASCADE
+ acte_issues_pkey                       | legislatie.acte_issues         | p               | PRIMARY KEY (act_id, issue_id)
+ acte_legislative_export_status_check   | legislatie.acte_legislative    | c               | CHECK (((export_status)::text = ANY ((ARRAY['pending'::character varying, 'exported'::character varying, 'error'::character varying])::text[])))
+ acte_legislative_ai_status_check       | legislatie.acte_legislative    | c               | CHECK (((ai_status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'error'::character varying])::text[])))
+ acte_legislative_pkey                  | legislatie.acte_legislative    | p               | PRIMARY KEY (id)
+ acte_modificari_act_id_fkey            | legislatie.acte_modificari     | f               | FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+ acte_modificari_pkey                   | legislatie.acte_modificari     | p               | PRIMARY KEY (id)
+ acte_modificari_act_id_versiune_key    | legislatie.acte_modificari     | u               | UNIQUE (act_id, versiune)
+ anexe_ai_status_check                  | legislatie.anexe               | c               | CHECK (((ai_status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'error'::character varying])::text[])))
+ check_continut_not_empty               | legislatie.anexe               | c               | CHECK ((length(TRIM(BOTH FROM continut)) > 0))
+ anexe_act_id_fkey                      | legislatie.anexe               | f               | FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+ anexe_pkey                             | legislatie.anexe               | p               | PRIMARY KEY (id)
+ unique_anexa_per_act                   | legislatie.anexe               | u               | UNIQUE (act_id, ordine)
+ anexe_issues_adaugat_de_check          | legislatie.anexe_issues        | c               | CHECK (((adaugat_de)::text = ANY ((ARRAY['ai'::character varying, 'manual'::character varying])::text[])))
+ anexe_issues_issue_id_fkey             | legislatie.anexe_issues        | f               | FOREIGN KEY (issue_id) REFERENCES legislatie.issues(id) ON DELETE CASCADE
+ anexe_issues_anexa_id_fkey             | legislatie.anexe_issues        | f               | FOREIGN KEY (anexa_id) REFERENCES legislatie.anexe(id) ON DELETE CASCADE
+ anexe_issues_pkey                      | legislatie.anexe_issues        | p               | PRIMARY KEY (anexa_id, issue_id)
+ articole_ai_status_check               | legislatie.articole            | c               | CHECK (((ai_status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'error'::character varying])::text[])))
+ articole_act_id_fkey                   | legislatie.articole            | f               | FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+ articole_pkey                          | legislatie.articole            | p               | PRIMARY KEY (id)
+ articole_issues_adaugat_de_check       | legislatie.articole_issues     | c               | CHECK (((adaugat_de)::text = ANY ((ARRAY['ai'::character varying, 'manual'::character varying])::text[])))
+ articole_issues_articol_id_fkey        | legislatie.articole_issues     | f               | FOREIGN KEY (articol_id) REFERENCES legislatie.articole(id) ON DELETE CASCADE
+ articole_issues_issue_id_fkey          | legislatie.articole_issues     | f               | FOREIGN KEY (issue_id) REFERENCES legislatie.issues(id) ON DELETE CASCADE
+ articole_issues_pkey                   | legislatie.articole_issues     | p               | PRIMARY KEY (articol_id, issue_id)
+ articole_modificari_modificare_id_fkey | legislatie.articole_modificari | f               | FOREIGN KEY (modificare_id) REFERENCES legislatie.acte_modificari(id) ON DELETE CASCADE
+ articole_modificari_articol_id_fkey    | legislatie.articole_modificari | f               | FOREIGN KEY (articol_id) REFERENCES legislatie.articole(id) ON DELETE SET NULL
+ articole_modificari_pkey               | legislatie.articole_modificari | p               | PRIMARY KEY (id)
+ categories_pkey                        | legislatie.categories          | p               | PRIMARY KEY (id)
+ categories_im_category_id_key          | legislatie.categories          | u               | UNIQUE (im_category_id)
+ categories_slug_key                    | legislatie.categories          | u               | UNIQUE (slug)
+ issues_source_check                    | legislatie.issues              | c               | CHECK (((source)::text = ANY ((ARRAY['ai'::character varying, 'manual'::character varying])::text[])))
+ check_denumire_not_empty               | legislatie.issues              | c               | CHECK ((length(TRIM(BOTH FROM denumire)) > 0))
+ issues_pkey                            | legislatie.issues              | p               | PRIMARY KEY (id)
+ linkuri_legislatie_pkey                | legislatie.linkuri_legislatie  | p               | PRIMARY KEY (id)
+ linkuri_legislatie_url_key             | legislatie.linkuri_legislatie  | u               | UNIQUE (url)
+(40 rows)
+
