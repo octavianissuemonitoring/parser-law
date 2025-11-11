@@ -315,6 +315,122 @@ async def get_act_stats(act_id: int, db: DBSession) -> dict:
     }
 
 
+@router.get("/{act_id}/export-for-analysis")
+async def export_act_for_analysis(
+    act_id: int,
+    db: DBSession,
+    include_metadata: bool = Query(True, description="Include act metadata in response"),
+) -> dict:
+    """
+    Export a legislative act with all articles in a structured format for analysis.
+    
+    This endpoint is designed for sending acts to Issue Monitoring for AI analysis.
+    Each article will be analyzed and receive back:
+    - issue: Label/tag identifying the article's domain or theme
+    - explicatie: Explanation or summary of the article's content
+    
+    **Response Format:**
+    ```json
+    {
+        "act": {
+            "id": 1,
+            "tip_act": "LEGE",
+            "nr_act": "123",
+            "an_act": "2012",
+            "titlu_act": "Legea educației naționale",
+            "url_legislatie": "...",
+            "emitent_act": "Parlamentul României"
+        },
+        "articole": [
+            {
+                "id": 1,
+                "numar_articol": "1",
+                "titlu_articol": "Obiectul legii",
+                "continut_articol": "Prezenta lege reglementează...",
+                "capitol": "CAP. I - Dispoziții generale",
+                "sectiune": null,
+                "issue": null,
+                "explicatie": null
+            }
+        ],
+        "stats": {
+            "total_articole": 428,
+            "articole_analyzed": 0,
+            "coverage_percent": 0.0
+        }
+    }
+    ```
+    
+    **Usage:**
+    1. Call this endpoint to get structured data
+    2. Send each article to Issue Monitoring for analysis
+    3. Use PUT /articole/{id} to update with received labels
+    """
+    # Fetch act
+    act_query = select(ActLegislativ).where(ActLegislativ.id == act_id)
+    act_result = await db.execute(act_query)
+    act = act_result.scalar_one_or_none()
+    
+    if not act:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Act legislativ cu ID {act_id} nu a fost găsit"
+        )
+    
+    # Fetch all articles for this act
+    articole_query = (
+        select(Articol)
+        .where(Articol.act_id == act_id)
+        .order_by(Articol.id)  # Keep original order
+    )
+    articole_result = await db.execute(articole_query)
+    articole = articole_result.scalars().all()
+    
+    # Build response
+    response = {}
+    
+    # Act metadata (optional)
+    if include_metadata:
+        response["act"] = {
+            "id": act.id,
+            "tip_act": act.tip_act,
+            "nr_act": act.nr_act,
+            "an_act": act.an_act,
+            "titlu_act": act.titlu_act,
+            "url_legislatie": act.url_legislatie,
+            "emitent_act": act.emitent_act,
+            "data_publicare": act.data_publicare.isoformat() if act.data_publicare else None,
+            "sursa_link_id": act.sursa_link_id,
+        }
+    
+    # Articles with all fields needed for analysis
+    response["articole"] = [
+        {
+            "id": art.id,
+            "numar_articol": art.numar_articol,
+            "titlu_articol": art.titlu_articol,
+            "continut_articol": art.continut_articol,
+            "capitol": art.capitol,
+            "sectiune": art.sectiune,
+            "alineat": art.alineat,
+            "litera": art.litera,
+            "issue": art.issue,  # Current label (may be null)
+            "explicatie": art.explicatie,  # Current explanation (may be null)
+        }
+        for art in articole
+    ]
+    
+    # Statistics
+    articole_analyzed = sum(1 for art in articole if art.issue or art.explicatie)
+    response["stats"] = {
+        "total_articole": len(articole),
+        "articole_analyzed": articole_analyzed,
+        "coverage_percent": round(articole_analyzed / len(articole) * 100, 2) if articole else 0.0,
+    }
+    
+    return response
+
+
 @router.post("/import", status_code=status.HTTP_200_OK)
 async def import_from_csv(
     db: DBSession,
