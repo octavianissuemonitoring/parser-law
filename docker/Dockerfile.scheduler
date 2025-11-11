@@ -1,34 +1,32 @@
-# Dockerfile for Scraper Scheduler
+########## Dockerfile for Scraper Scheduler (v2.0.0) ##########
 FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      gcc curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
-COPY requirements-scheduler.txt .
-RUN pip install --no-cache-dir -r requirements-scheduler.txt
+# Install Python deps
+COPY requirements-scheduler.txt /app/requirements-scheduler.txt
+RUN pip install --no-cache-dir -r /app/requirements-scheduler.txt
 
-# Copy application files
-COPY scheduler.py .
-COPY scraper_legislatie.py .
-COPY hybrid_parser.py .
-COPY html_parser.py .
-COPY html_parser_old_backup.py .
-COPY quality_checker.py .
-COPY config.py .
+# Copy application code (v2 layout)
+COPY src /app/src
 
-# Create necessary directories
-RUN mkdir -p /app/rezultate /app/logs
+# Create runtime dirs
+RUN mkdir -p /app/data/rezultate /app/logs
 
-# Create non-root user
-RUN useradd -m -u 1000 scraper && \
-    chown -R scraper:scraper /app
-
+# Non-root user
+RUN useradd -m -u 1000 scraper && chown -R scraper:scraper /app
 USER scraper
 
-# Default command
-CMD ["python", "scheduler.py"]
+# Ensure src on PYTHONPATH
+ENV PYTHONPATH=/app:/app/src
+
+# Default command: run scheduler (can be overridden in compose)
+CMD ["python", "-m", "src.scheduler.scheduler", "--show-config"]

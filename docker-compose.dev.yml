@@ -162,19 +162,26 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       
       TZ: "Europe/Bucharest"
+      
+      # v2 overrides / feature toggles (merged to avoid duplicate environment blocks)
+      SCRAPER_OUTPUT_DIR: /app/data/rezultate
+      SCRAPER_LINKS_FILE: /app/linkuri_legislatie.txt
+      AI_PROCESSING_ENABLED: "false"  # Disabled in local dev by default
+      EXPORT_ENABLED: "false"        # Disabled in local dev by default
     
     volumes:
-      # Hot reload for scheduler code
-      - ./scheduler.py:/app/scheduler.py:ro
-      - ./scraper_legislatie.py:/app/scraper_legislatie.py:ro
-      - ./hybrid_parser.py:/app/hybrid_parser.py:ro
+      # Mount v2 source code for hot reload
+      - ./src:/app/src:ro
+      
+      # Links file
+      - ./linkuri_legislatie.txt:/app/linkuri_legislatie.txt:ro
       
       # Logs
       - ./logs:/app/logs
       
-      # Data directories
-      - ./data/rezultate:/app/rezultate
-      - ./data/export:/app/export_csv
+      # Data directories (outputs)
+      - ./data/rezultate:/app/data/rezultate
+      - ./data/export:/app/data/export
     
     depends_on:
       - api
@@ -182,14 +189,9 @@ services:
     networks:
       - parser-law-network
     
-    # Disable scheduler in dev by default (uncomment to enable)
-    # command: python scheduler.py
-    command: >
-      sh -c "
-        echo '⏰ Scheduler container started (disabled in dev mode)'
-        && echo 'To enable: uncomment command in docker-compose.dev.yml'
-        && tail -f /dev/null
-      "
+    # Disabled by default in dev; uncomment to run immediately
+    # command: python -m src.scheduler.scheduler --now
+    command: tail -f /dev/null
 
 # ==============================================================================
 # Volumes
