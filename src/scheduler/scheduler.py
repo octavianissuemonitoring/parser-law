@@ -20,7 +20,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 
 # Import scraper
-from scraper_legislatie import LegislationScraper
+from src.scraper.legislatie import LegislationScraper
 
 # Configurare logging
 logging.basicConfig(

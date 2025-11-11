@@ -21,7 +21,7 @@ services:
       # Scraper settings
       - SCRAPER_DELAY=2.0
       - SCRAPER_LINKS_FILE=/app/linkuri_legislatie.txt
-      - SCRAPER_OUTPUT_DIR=/app/rezultate
+      - SCRAPER_OUTPUT_DIR=/app/data/rezultate
       
       # Auto-import
       - SCRAPER_AUTO_IMPORT=true
@@ -32,7 +32,7 @@ services:
       - ./linkuri_legislatie.txt:/app/linkuri_legislatie.txt:ro
       
       # Mount output directory (shared with API)
-      - ./rezultate:/app/rezultate
+      - ./data/rezultate:/app/data/rezultate
       
       # Mount logs
       - ./logs/scheduler:/app/logs

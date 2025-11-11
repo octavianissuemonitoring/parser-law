@@ -15,7 +15,7 @@ import os
 import json
 from datetime import datetime
 
-from html_parser import parse_html_legislative_structure
+from src.scraper.html_parser import parse_html_legislative_structure
 
 # Configurare logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

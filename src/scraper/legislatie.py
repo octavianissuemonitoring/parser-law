@@ -16,7 +16,7 @@ from typing import List, Optional
 import pandas as pd
 from bs4 import BeautifulSoup
 
-from hybrid_parser import HybridLegislativeParser
+from src.scraper.hybrid_parser import HybridLegislativeParser
 
 class LegislationScraper:
     def __init__(self, links_file: str = "linkuri_legislatie.txt", output_dir: str = "rezultate"):

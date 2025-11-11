@@ -659,7 +659,3 @@ if ($DryRun) {
 Write-Host ""
 Write-Host "Need help? See PROJECT_STRUCTURE.md" -ForegroundColor $ColorInfo
 Write-Host ""
-"@
-
-Set-Content "scripts/restructure-v2.ps1" -Value $newReadme
-Write-Host "✅ Created: scripts/restructure-v2.ps1" -ForegroundColor $ColorSuccess

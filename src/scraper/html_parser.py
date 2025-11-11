@@ -10,7 +10,7 @@ import re
 import pandas as pd
 from typing import List, Dict, Optional, Any
 from bs4 import BeautifulSoup
-from config import TIPURI_ACTE_NORMATIVE
+from src.config.settings import TIPURI_ACTE_NORMATIVE
 
 
 def extract_number_from_text(text: str) -> Optional[int]:

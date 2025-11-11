@@ -173,8 +173,8 @@ services:
       - ./logs:/app/logs
       
       # Data directories
-      - ./rezultate:/app/rezultate
-      - ./export_csv:/app/export_csv
+      - ./data/rezultate:/app/rezultate
+      - ./data/export:/app/export_csv
     
     depends_on:
       - api
