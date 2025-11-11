@@ -1,0 +1,83 @@
+# ============================================================================
+# Flake8 Configuration
+# ============================================================================
+# 
+# Flake8 is a Python linting tool that checks code style and quality.
+# It combines PyFlakes, pycodestyle, and McCabe complexity checker.
+# 
+# ============================================================================
+
+[flake8]
+# ----------------------------------------------------------------------------
+# Basic Settings
+# ----------------------------------------------------------------------------
+max-line-length = 100
+max-complexity = 15
+
+# ----------------------------------------------------------------------------
+# Error Codes to Ignore
+# ----------------------------------------------------------------------------
+# E203: Whitespace before ':' (conflicts with Black)
+# E501: Line too long (handled by Black)
+# W503: Line break before binary operator (outdated rule)
+# E402: Module level import not at top of file
+extend-ignore = E203, E501, W503
+
+# ----------------------------------------------------------------------------
+# Paths to Exclude
+# ----------------------------------------------------------------------------
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    build,
+    dist,
+    alembic/versions,
+    migrations,
+    *.egg-info,
+    .mypy_cache,
+    .pytest_cache,
+    htmlcov
+
+# ----------------------------------------------------------------------------
+# Per-file Ignores
+# ----------------------------------------------------------------------------
+per-file-ignores =
+    # Allow unused imports in __init__.py
+    __init__.py:F401
+    # Allow print statements in scripts
+    scripts/*.py:T001,T201
+
+# ----------------------------------------------------------------------------
+# Import Order Checking (flake8-import-order)
+# ----------------------------------------------------------------------------
+import-order-style = google
+application-import-names = app
+
+# ----------------------------------------------------------------------------
+# Docstring Checking (flake8-docstrings)
+# ----------------------------------------------------------------------------
+docstring-convention = google
+# D100: Missing docstring in public module
+# D104: Missing docstring in public package
+# D107: Missing docstring in __init__
+ignore = D100, D104, D107
+
+# ----------------------------------------------------------------------------
+# Additional Settings
+# ----------------------------------------------------------------------------
+# Show source code for each error
+show-source = true
+
+# Count the number of occurrences of each error/warning
+count = true
+
+# Print total number of errors
+statistics = true
+
+# Enable these flake8 plugins (if installed):
+# - flake8-bugbear (B): Find likely bugs
+# - flake8-comprehensions (C4): Better list/dict/set comprehensions
+# - flake8-simplify (SIM): Simplification suggestions
+# - flake8-bandit (S): Security issues

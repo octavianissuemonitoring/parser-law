@@ -1,0 +1,201 @@
+# ============================================================================
+# Pre-commit Hooks Configuration
+# ============================================================================
+# 
+# Pre-commit hooks automatically format and check code before each commit.
+# This ensures all code in the repository meets quality standards.
+# 
+# SETUP:
+#   pip install pre-commit
+#   pre-commit install
+# 
+# USAGE:
+#   pre-commit run --all-files  # Run on all files
+#   git commit -m "message"     # Hooks run automatically
+# 
+# SKIP (emergency only):
+#   git commit -m "message" --no-verify
+# 
+# ============================================================================
+
+repos:
+  # --------------------------------------------------------------------------
+  # General file checks
+  # --------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Prevent committing large files (>500KB)
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      
+      # Check for merge conflict markers
+      - id: check-merge-conflict
+      
+      # Check YAML syntax
+      - id: check-yaml
+        args: ['--safe']
+      
+      # Check JSON syntax
+      - id: check-json
+      
+      # Check TOML syntax
+      - id: check-toml
+      
+      # Ensure files end with newline
+      - id: end-of-file-fixer
+      
+      # Remove trailing whitespace
+      - id: trailing-whitespace
+        args: ['--markdown-linebreak-ext=md']
+      
+      # Check for files that would conflict on case-insensitive filesystems
+      - id: check-case-conflict
+      
+      # Check executables have shebangs
+      - id: check-executables-have-shebangs
+      
+      # Check shebangs are valid
+      - id: check-shebang-scripts-are-executable
+      
+      # Prevent committing to master directly
+      - id: no-commit-to-branch
+        args: ['--branch', 'master']
+
+  # --------------------------------------------------------------------------
+  # Python: Black (Code Formatter)
+  # --------------------------------------------------------------------------
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+        language_version: python3.11
+        args: ['--line-length=100']
+
+  # --------------------------------------------------------------------------
+  # Python: isort (Import Sorter)
+  # --------------------------------------------------------------------------
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile=black', '--line-length=100']
+
+  # --------------------------------------------------------------------------
+  # Python: Flake8 (Linter)
+  # --------------------------------------------------------------------------
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: ['--max-line-length=100', '--extend-ignore=E203,W503']
+        additional_dependencies:
+          - flake8-bugbear      # Detect likely bugs
+          - flake8-comprehensions  # Better comprehensions
+          - flake8-simplify     # Simplification suggestions
+
+  # --------------------------------------------------------------------------
+  # Python: Ruff (Fast Python Linter)
+  # --------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.0
+    hooks:
+      # Linter
+      - id: ruff
+        args: ['--fix', '--exit-non-zero-on-fix']
+      
+      # Formatter (alternative to Black, faster)
+      # - id: ruff-format
+
+  # --------------------------------------------------------------------------
+  # Python: MyPy (Type Checker)
+  # --------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.9.0
+    hooks:
+      - id: mypy
+        args: ['--ignore-missing-imports', '--python-version=3.11']
+        additional_dependencies:
+          - types-requests
+          - types-python-dateutil
+        # Only check app code, not tests
+        files: ^(app|db_service/app)/.*\.py$
+
+  # --------------------------------------------------------------------------
+  # Security: Bandit (Security Checker)
+  # --------------------------------------------------------------------------
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.7
+    hooks:
+      - id: bandit
+        args: ['-c', 'pyproject.toml']
+        additional_dependencies: ['bandit[toml]']
+        # Skip test files
+        exclude: ^tests/
+
+  # --------------------------------------------------------------------------
+  # Secrets Detection
+  # --------------------------------------------------------------------------
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package.lock.json
+
+  # --------------------------------------------------------------------------
+  # Dockerfile Linting
+  # --------------------------------------------------------------------------
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint
+        args: ['--ignore', 'DL3008', '--ignore', 'DL3013']
+
+  # --------------------------------------------------------------------------
+  # YAML Formatting
+  # --------------------------------------------------------------------------
+  - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+    rev: v2.12.0
+    hooks:
+      - id: pretty-format-yaml
+        args: ['--autofix', '--indent', '2']
+
+# ============================================================================
+# Configuration for specific hooks
+# ============================================================================
+
+# Bandit security checks configuration
+[tool.bandit]
+exclude_dirs = ["/tests", "/venv", "/.venv"]
+skips = ["B101", "B601"]  # Skip assert_used, paramiko_calls
+
+# ============================================================================
+# NOTES
+# ============================================================================
+# 
+# 1. Install pre-commit:
+#    pip install pre-commit
+#    pre-commit install
+# 
+# 2. Run manually on all files:
+#    pre-commit run --all-files
+# 
+# 3. Update hooks to latest versions:
+#    pre-commit autoupdate
+# 
+# 4. Skip hooks temporarily (emergency only):
+#    git commit -m "message" --no-verify
+# 
+# 5. Run specific hook:
+#    pre-commit run black --all-files
+#    pre-commit run flake8 --all-files
+# 
+# 6. Hooks run automatically on:
+#    - git commit (staged files only)
+#    - git push (if configured)
+# 
+# 7. Bypassing hooks:
+#    Only use --no-verify in emergencies. Code should always pass checks.
+# 
+# ============================================================================
