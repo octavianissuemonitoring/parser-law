@@ -41,12 +41,16 @@ services:
     volumes:
       - ./app:/app/app
       - ./alembic:/app/alembic
-      - ../data/rezultate:/app/rezultate  # Mount rezultate pentru import (read-write, shared with scheduler)
+      # Commented out - permission issues with bind mount, using container's internal directory
+      # - ../data/rezultate:/app/rezultate  # Mount rezultate pentru import (read-write, shared with scheduler)
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - legislatie_network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # pgAdmin (optional - pentru management UI)

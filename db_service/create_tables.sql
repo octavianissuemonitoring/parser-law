@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS legislatie.acte_legislative (
     ai_processed_at TIMESTAMP,
     ai_error TEXT,
     -- Metadata and export columns
-    metadate JSONB,
+    metadate TEXT,
     export_status VARCHAR(20),
     export_at TIMESTAMP,
     export_error TEXT,
