@@ -121,66 +121,95 @@ LOG_LEVEL=INFO
 
 ## 🐳 Pas 3: Start Servicii Docker
 
-### 3.1. Start Database + API
+### 3.1. Configurare Build Context
 
-**IMPORTANT:** Fișierul `docker-compose.yml` se află în subdirectorul `db_service/`.
+**IMPORTANT:** Dockerfile-ul necesită fișiere din directorul principal, trebuie să actualizăm build context-ul.
 
 ```bash
-# Intră în directorul db_service
 cd /opt/parser-law/db_service
 
-# Verifică existența fișierului .env
+# Actualizează docker-compose.yml pentru build context corect
+sed -i 's|context: \.|context: ..|g' docker-compose.yml
+sed -i 's|dockerfile: Dockerfile|dockerfile: db_service/Dockerfile|g' docker-compose.yml
+
+# Actualizează Dockerfile pentru path-uri corecte
+sed -i 's|COPY requirements.txt \.|COPY db_service/requirements.txt .|g' Dockerfile
+sed -i 's|COPY \./app /app/app|COPY db_service/app /app/app|g' Dockerfile
+sed -i 's|COPY \./alembic /app/alembic|COPY db_service/alembic /app/alembic|g' Dockerfile
+sed -i 's|COPY alembic.ini /app/|COPY db_service/alembic.ini /app/|g' Dockerfile
+```
+
+### 3.2. Configurare Environment
+
+```bash
+# Verifică și configurează .env
+cd /opt/parser-law/db_service
 ls -la .env
 
-# Dacă nu există, creează-l din .env.example
+# Dacă nu există, creează-l
 cp .env.example .env
 
 # Editează parolele (OBLIGATORIU pentru producție!)
 nano .env
 
-# Pornește serviciile
-docker compose up -d
+# Actualizează DATABASE_URL cu parola corectă
+sed -i 's/CHANGE_THIS_PASSWORD/your_password_here/g' .env
 ```
 
-**Alternativ - din directorul principal:**
+### 3.3. Start Database + API
+
 ```bash
+# Pornește serviciile din directorul principal (build context corect)
 cd /opt/parser-law
-docker compose -f db_service/docker-compose.yml up -d
+docker compose -f db_service/docker-compose.yml up -d --build
 ```
 
-### 3.2. Verificare servicii
+### 3.4. Verificare servicii
 
 ```bash
-# Din directorul db_service
-docker compose ps
+# Verifică status servicii
+cd /opt/parser-law
+docker compose -f db_service/docker-compose.yml ps
 
-# Verifică că ambele servicii sunt healthy
+# Trebuie să vezi ambele servicii ca healthy:
 # ✅ legislatie_postgres    Up X seconds (healthy)
 # ✅ legislatie_api         Up X seconds (healthy)
 
 # Vezi logs pentru debugging
-docker compose logs -f api
-
-# Sau din directorul principal
-docker compose -f db_service/docker-compose.yml ps
 docker compose -f db_service/docker-compose.yml logs -f api
+docker compose -f db_service/docker-compose.yml logs -f postgres
 ```
 
-### 3.3. Creare tabele database
-```bash
-# IMPORTANT: Asigură-te că ești în directorul db_service
+### 3.5. Creare tabele database
 
-# Opțiunea 1: SQL direct (recomandat)
+```bash
+# Așteaptă ca PostgreSQL să fie complet pornit
+sleep 10
+
+# Creează tabelele din SQL
+cd /opt/parser-law/db_service
 docker exec -i legislatie_postgres psql -U legislatie_user -d monitoring_platform < create_tables.sql
 
-# Opțiunea 2: Alembic migrations
-docker compose exec api alembic upgrade head
+# Adaugă coloanele lipsă pentru AI și export features
+cat > /tmp/add_columns.sql << 'EOF'
+ALTER TABLE legislatie.acte_legislative 
+ADD COLUMN IF NOT EXISTS ai_status VARCHAR(20) DEFAULT 'pending',
+ADD COLUMN IF NOT EXISTS ai_processed_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS ai_error TEXT,
+ADD COLUMN IF NOT EXISTS metadate JSONB,
+ADD COLUMN IF NOT EXISTS export_status VARCHAR(20),
+ADD COLUMN IF NOT EXISTS export_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS export_error TEXT,
+ADD COLUMN IF NOT EXISTS issue_monitoring_id INTEGER;
+EOF
 
-# Verificare tabele create
+docker exec -i legislatie_postgres psql -U legislatie_user -d monitoring_platform < /tmp/add_columns.sql
+
+# Verificare tabele create (trebuie să vezi 7 tabele: acte_legislative, acte_modificari, articole, articole_modificari, linkuri_legislatie, issues, anexe)
 docker exec legislatie_postgres psql -U legislatie_user -d monitoring_platform -c "\dt legislatie.*"
 ```
 
-### 3.4. Start Scheduler (opțional)
+### 3.6. Start Scheduler (opțional)
 
 ```bash
 # Înapoi în directorul principal
@@ -208,15 +237,33 @@ sudo apt install nginx -y
 ### 4.2. Configurare site pentru subdomain
 
 ```bash
-sudo nano /etc/nginx/sites-available/parser-law
+# Copiază configurația exemplu și adaptează pentru domeniul tău
+cd /opt/parser-law
+sudo cp nginx.conf.example /etc/nginx/sites-available/parser-law
+
+# Actualizează domain name
+sudo sed -i 's/your-domain.com www.your-domain.com/legislatie.issuemonitoring.ro/g' /etc/nginx/sites-available/parser-law
 ```
 
-Conținut `/etc/nginx/sites-available/parser-law`:
+**Sau creează manual** `/etc/nginx/sites-available/parser-law`:
 ```nginx
 server {
     listen 80;
     server_name legislatie.issuemonitoring.ro;
 
+    # Dimensiune maximă pentru file uploads
+    client_max_body_size 10M;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Logging
+    access_log /var/log/nginx/parser-law-access.log;
+    error_log /var/log/nginx/parser-law-error.log;
+
+    # API Backend
     location / {
         proxy_pass http://localhost:8000;
         proxy_http_version 1.1;
@@ -227,33 +274,48 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
-        
-        # Timeout pentru long-running requests
+
+        # Timeouts pentru long-running requests
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
     }
 
-    # Swagger UI
+    # Swagger UI Documentation
     location /docs {
         proxy_pass http://localhost:8000/docs;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
-    # Health check
+    # OpenAPI JSON
+    location /openapi.json {
+        proxy_pass http://localhost:8000/openapi.json;
+        proxy_set_header Host $host;
+    }
+
+    # Health check endpoint
     location /health {
         proxy_pass http://localhost:8000/health;
         access_log off;
     }
 }
-}
 ```
 
-### 4.3. Activare site
+### 4.3. Activare site și dezactivare default
+
 ```bash
+# Dezactivează site-ul default care ar putea intercepta traficul
+sudo rm -f /etc/nginx/sites-enabled/default
+
+# Activează configurația parser-law
 sudo ln -s /etc/nginx/sites-available/parser-law /etc/nginx/sites-enabled/
+
+# Verifică configurația
 sudo nginx -t
+
+# Restart Nginx
 sudo systemctl restart nginx
 ```
 
@@ -273,9 +335,16 @@ sudo apt install certbot python3-certbot-nginx -y
 ```bash
 # Verifică DNS
 nslookup legislatie.issuemonitoring.ro
-# Trebuie să returneze IP-ul VPS-ului
+# Trebuie să returneze IP-ul VPS-ului (109.123.249.228)
 
-# Obține certificat SSL
+# Obține certificat SSL automat (non-interactive)
+sudo certbot --nginx -d legislatie.issuemonitoring.ro \
+  --non-interactive \
+  --agree-tos \
+  --email your-email@domain.com \
+  --redirect
+
+# SAU interactiv (recomandat pentru prima instalare):
 sudo certbot --nginx -d legislatie.issuemonitoring.ro
 
 # Urmează instrucțiunile:
@@ -527,23 +596,46 @@ sudo tail -f /var/log/nginx/error.log
 
 ---
 
-**Domain:** legislatie.issuemonitoring.ro  
-**Deployment date:** 8 noiembrie 2025  
-**Version:** 2.0.0
-sudo tail -f /var/log/nginx/access.log
+## ⚠️ Common Issues & Solutions
+
+### Issue: Docker build fails with "file not found"
+**Cauză:** Build context incorect - Dockerfile-ul caută fișiere în directorul greșit.
+**Soluție:** Asigură-te că rulezi `docker compose` din directorul principal cu flag `-f db_service/docker-compose.yml` și că build context este setat la `..` (parent directory).
+
+### Issue: API returns 500 error on /api/v1/acte
+**Cauză:** Coloanele AI și export lipsesc din tabelul `acte_legislative`.
+**Soluție:** Rulează script-ul SQL pentru adăugare coloane (Pasul 3.5).
+
+### Issue: Site nu este accesibil prin domeniu
+**Cauză:** Site-ul default Nginx interceptează traficul.
+**Soluție:** `sudo rm /etc/nginx/sites-enabled/default && sudo systemctl reload nginx`
+
+### Issue: "Connection refused" la accesare site
+**Cauză:** API-ul nu rulează sau Nginx nu este configurat corect.
+**Verificare:**
+```bash
+# Test local API
+curl http://localhost:8000/health
+
+# Verifică Docker
+docker compose -f db_service/docker-compose.yml ps
+
+# Verifică Nginx
+sudo systemctl status nginx
+sudo nginx -t
 ```
 
 ---
 
 ## 📚 Resurse Utile
 
-- **API Docs:** https://issuemonitoring.ro/docs
-- **GitHub Repo:** https://github.com/octavianissuemonitoring/parser-law
-- **PostgreSQL Admin:** pgAdmin sau Adminer (opțional - adaugă în docker-compose.yml)
+- **API Documentation:** https://legislatie.issuemonitoring.ro/docs
+- **GitHub Repository:** https://github.com/octavianissuemonitoring/parser-law
+- **Issue Tracker:** https://github.com/octavianissuemonitoring/parser-law/issues
 
 ---
 
-**Deployment realizat:** 8 noiembrie 2025
-**Versiune:** 1.0.0
-**Domain:** issuemonitoring.ro
-**VPS IP:** 77.237.235.158
+**Domain:** legislatie.issuemonitoring.ro  
+**Deployment date:** 14 noiembrie 2025  
+**Version:** 2.0.0  
+**VPS IP:** 109.123.249.228
