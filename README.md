@@ -6,6 +6,17 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 
+## 📋 Prerequisites
+
+- **Python 3.11+** with pip
+- **Docker 24.x** and Docker Compose 2.x
+- **PostgreSQL 15** (via Docker)
+- **Git**
+
+Optional for VPS deployment:
+- **Nginx** (reverse proxy)
+- **Certbot** (SSL certificates)
+
 ## 🚀 Quick Start
 
 ```bash
@@ -13,14 +24,20 @@
 git clone https://github.com/octavianissuemonitoring/parser-law.git
 cd parser-law
 
-# 2. Setup environment
+# 2. Install Python dependencies (for scraper)
+pip3 install -r requirements-scheduler.txt
+
+# 3. Setup environment
 cp .env.example .env
 # Edit .env with your settings
 
-# 3. Start services
+# 4. Start services
 docker-compose up -d
 
-# 4. Access API
+# 5. Test scraper
+python3 scraper_legislatie.py
+
+# 6. Access API
 open http://localhost:8000/docs
 ```
 
