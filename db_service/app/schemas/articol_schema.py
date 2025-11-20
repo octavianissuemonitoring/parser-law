@@ -5,6 +5,9 @@ from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field, ConfigDict
 
+from app.schemas.issue_schema import IssueWithContext
+from app.schemas.domeniu_schema import DomeniuWithSource
+
 if TYPE_CHECKING:
     from app.schemas.act_schema import ActLegislativResponse
 
@@ -29,9 +32,9 @@ class ArticolBase(BaseModel):
     # Conținut
     text_articol: str = Field(..., description="Text complet articol")
     
-    # LLM Labels
-    issue: Optional[str] = Field(None, description="Issue/subiect (generat LLM)")
-    explicatie: Optional[str] = Field(None, description="Explicație (generat LLM)")
+    # LLM Labels (DEPRECATED - use issues system instead)
+    # Note: 'issue' field removed from database - now using articole_issues junction
+    explicatie: Optional[str] = Field(None, description="Explicație (generat LLM) - DEPRECATED, use metadate")
     
     # Metadata
     ordine: Optional[int] = Field(None, description="Ordinea în act")
@@ -59,16 +62,14 @@ class ArticolUpdate(BaseModel):
     subsectiune_nr: Optional[int] = None
     subsectiune_denumire: Optional[str] = None
     text_articol: Optional[str] = None
-    issue: Optional[str] = None
-    explicatie: Optional[str] = None
+    explicatie: Optional[str] = None  # DEPRECATED
     ordine: Optional[int] = None
 
 
-# Schema for updating labels only (for LLM integration)
+# Schema for updating labels only (for LLM integration) - DEPRECATED
 class ArticolLabelsUpdate(BaseModel):
-    """Schema for updating only issue and explicatie."""
+    """Schema for updating only explicatie. NOTE: 'issue' field removed - use issues API."""
     
-    issue: Optional[str] = Field(None, description="Issue/subiect")
     explicatie: Optional[str] = Field(None, description="Explicație")
 
 
@@ -115,3 +116,28 @@ class ArticolSearchResult(ArticolResponse):
     
     relevance_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Search relevance")
     highlight: Optional[str] = Field(None, description="Highlighted text snippet")
+
+
+# ============================================================================
+# Enhanced Response Schemas with Issues and Domenii
+# ============================================================================
+
+class ArticolWithIssues(ArticolResponse):
+    """Article response with Tier 1 issues (direct issues only)."""
+    
+    issues: list[IssueWithContext] = Field(
+        default_factory=list, 
+        description="Tier 1 issues linked directly to this article"
+    )
+    domenii: list[DomeniuWithSource] = Field(
+        default_factory=list,
+        description="Effective domains (from article override or inherited from act)"
+    )
+
+
+class ArticolWithFullContext(ArticolWithIssues):
+    """Article with complete context: issues, domains, and AI status."""
+    
+    ai_status: Optional[str] = Field(None, description="AI processing status")
+    ai_processed_at: Optional[datetime] = Field(None, description="AI processing timestamp")
+    metadate: Optional[str] = Field(None, description="AI-generated metadata/summary")

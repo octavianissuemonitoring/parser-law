@@ -12,6 +12,8 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.act_legislativ import ActLegislativ
     from app.models.issue import Issue
+    from app.models.issues_relations import ArticolIssue
+    from app.models.domeniu import ArticolDomeniu
 
 
 class Articol(Base):
@@ -59,7 +61,7 @@ class Articol(Base):
     text_articol: Mapped[str] = mapped_column(Text, nullable=False)
     
     # LLM Generated Labels (editabile)
-    issue: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Note: 'issue' field removed - now using articole_issues junction table
     explicatie: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Deprecated: use metadate
     metadate: Mapped[Optional[str]] = mapped_column(
         Text,
@@ -119,13 +121,19 @@ class Articol(Base):
         lazy="selectin"
     )
     
-    # TODO: Uncomment when articole_issues table is created via migration
-    # issues: Mapped[List["Issue"]] = relationship(
-    #     "Issue",
-    #     secondary="legislatie.articole_issues",
-    #     back_populates="articole",
-    #     lazy="selectin"
-    # )
+    # Relationships to junction tables
+    articole_issues: Mapped[List["ArticolIssue"]] = relationship(
+        "ArticolIssue",
+        back_populates="articol",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    articole_domenii: Mapped[List["ArticolDomeniu"]] = relationship(
+        "ArticolDomeniu",
+        back_populates="articol",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
     
     # Indexes for performance
     __table_args__ = (

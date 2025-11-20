@@ -86,11 +86,13 @@ from app.api.routes import acte_router, articole_router, stats_router, issues_ro
 from app.api.routes.ai_processing import router as ai_router
 from app.api.routes.export import router as export_router
 from app.api.routes.links import router as links_router
+from app.api.routes.domenii import router as domenii_router
 
 app.include_router(acte_router, prefix="/api/v1")
 app.include_router(articole_router, prefix="/api/v1")
 app.include_router(stats_router, prefix="/api/v1")
 app.include_router(issues_router, prefix="/api/v1")
+app.include_router(domenii_router, prefix="/api/v1")
 app.include_router(categories_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")

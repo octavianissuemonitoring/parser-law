@@ -133,13 +133,25 @@ class ActLegislativ(Base):
         lazy="selectin"
     )
     
-    # TODO: Uncomment when acte_issues table is created via migration
-    # issues: Mapped[List["Issue"]] = relationship(
-    #     "Issue",
-    #     secondary="legislatie.acte_issues",
-    #     back_populates="acte",
-    #     lazy="selectin"
-    # )
+    # Relationships to junction tables
+    acte_issues: Mapped[List["ActIssue"]] = relationship(
+        "ActIssue",
+        back_populates="act",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    acte_domenii: Mapped[List["ActDomeniu"]] = relationship(
+        "ActDomeniu",
+        back_populates="act",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    structure_issues: Mapped[List["StructureIssue"]] = relationship(
+        "StructureIssue",
+        back_populates="act",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
     
     def __repr__(self) -> str:
         return f"<ActLegislativ(id={self.id}, tip={self.tip_act}, nr={self.nr_act}, an={self.an_act})>"

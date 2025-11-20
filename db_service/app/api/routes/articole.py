@@ -1,23 +1,31 @@
 """
 API Routes for Articole (Articles).
+
+Extended with issues and domains support.
 """
 from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select, func, or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select, func, or_, text
+from sqlalchemy.orm import selectinload, joinedload
 
 from app.api.deps import DBSession, Pagination
-from app.models import Articol, ActLegislativ
+from app.models import Articol, ActLegislativ, ArticolIssue, Issue, Domeniu, ArticolDomeniu, ActDomeniu
 from app.schemas import (
     ArticolCreate,
     ArticolUpdate,
     ArticolLabelsUpdate,
     ArticolResponse,
+    ArticolWithIssues,
+    ArticolWithFullContext,
     # ArticolWithAct,  # DISABLED due to circular import
     ArticolList,
     ArticolBatchUpdate,
     ArticolSearchResult,
+    IssueWithContext,
+    DomeniuWithSource,
+    IssueMinimal,
+    DomeniuMinimal,
 )
 
 router = APIRouter(prefix="/articole", tags=["Articole"])
@@ -107,7 +115,109 @@ async def get_articol(articol_id: int, db: DBSession) -> ArticolResponse:
     return articol
 
 
-@router.get("/{articol_id}/with-act", response_model=ArticolResponse)
+@router.get("/{articol_id}/with-issues", response_model=ArticolWithIssues)
+async def get_articol_with_issues(
+    articol_id: int, 
+    db: DBSession,
+    domeniu_id: Optional[int] = Query(None, description="Filter issues by domain ID"),
+) -> ArticolWithIssues:
+    """
+    Get article with Tier 1 issues (direct issues) and effective domains.
+    
+    - **articol_id**: The ID of the article
+    - **domeniu_id**: Optional filter to show issues only for specific domain
+    
+    Returns article with:
+    - Tier 1 issues (direct assignments via articole_issues)
+    - Effective domains (from article override or inherited from act)
+    """
+    # Get article
+    query = select(Articol).where(Articol.id == articol_id)
+    result = await db.execute(query)
+    articol = result.scalar_one_or_none()
+    
+    if not articol:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Articol cu ID {articol_id} nu a fost găsit",
+        )
+    
+    # Get effective domains using helper function
+    domenii_query = text("""
+        SELECT domeniu_id, cod, denumire, source 
+        FROM legislatie.get_articol_domenii(:articol_id)
+    """)
+    domenii_result = await db.execute(domenii_query, {"articol_id": articol_id})
+    domenii_rows = domenii_result.fetchall()
+    
+    domenii = [
+        DomeniuWithSource(
+            id=row.domeniu_id,
+            cod=row.cod,
+            denumire=row.denumire,
+            culoare=None,  # Not returned by function
+            source=row.source,
+        )
+        for row in domenii_rows
+    ]
+    
+    # Get Tier 1 issues
+    issues_query = (
+        select(ArticolIssue, Issue, Domeniu)
+        .join(Issue, ArticolIssue.issue_id == Issue.id)
+        .join(Domeniu, ArticolIssue.domeniu_id == Domeniu.id)
+        .where(ArticolIssue.articol_id == articol_id)
+    )
+    
+    # Apply domain filter if specified
+    if domeniu_id:
+        issues_query = issues_query.where(ArticolIssue.domeniu_id == domeniu_id)
+    
+    issues_result = await db.execute(issues_query)
+    issues_rows = issues_result.all()
+    
+    issues = [
+        IssueWithContext(
+            id=issue.id,
+            denumire=issue.denumire,
+            descriere=issue.descriere,
+            confidence_score=float(issue.confidence_score) if issue.confidence_score else None,
+            domeniu=DomeniuMinimal(
+                id=domeniu.id,
+                cod=domeniu.cod,
+                denumire=domeniu.denumire,
+                culoare=domeniu.culoare,
+            ),
+            relevance_score=float(articol_issue.relevance_score) if articol_issue.relevance_score else None,
+            tier=1,  # Tier 1: Direct issue
+        )
+        for articol_issue, issue, domeniu in issues_rows
+    ]
+    
+    # Convert articol to dict and add issues + domenii
+    articol_dict = {
+        "id": articol.id,
+        "act_id": articol.act_id,
+        "articol_nr": articol.articol_nr,
+        "articol_label": articol.articol_label,
+        "titlu_nr": articol.titlu_nr,
+        "titlu_denumire": articol.titlu_denumire,
+        "capitol_nr": articol.capitol_nr,
+        "capitol_denumire": articol.capitol_denumire,
+        "sectiune_nr": articol.sectiune_nr,
+        "sectiune_denumire": articol.sectiune_denumire,
+        "subsectiune_nr": articol.subsectiune_nr,
+        "subsectiune_denumire": articol.subsectiune_denumire,
+        "text_articol": articol.text_articol,
+        "explicatie": articol.explicatie,
+        "ordine": articol.ordine,
+        "created_at": articol.created_at,
+        "updated_at": articol.updated_at,
+        "issues": issues,
+        "domenii": domenii,
+    }
+    
+    return ArticolWithIssues(**articol_dict)
 async def get_articol_with_act(articol_id: int, db: DBSession) -> ArticolResponse:
     """
     Get an article (without nested act - use GET /api/v1/acte/{act_id} for the parent act).

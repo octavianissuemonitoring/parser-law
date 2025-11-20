@@ -98,6 +98,14 @@ class Anexa(Base):
         server_default=func.now(),
         nullable=False
     )
+    
+    # Relationships to junction tables
+    anexe_issues: Mapped[List["AnexaIssue"]] = relationship(
+        "AnexaIssue",
+        back_populates="anexa",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
     data_modificare: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

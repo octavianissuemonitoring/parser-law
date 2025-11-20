@@ -1,0 +1,49 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Deploy to VPS via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        script: |
+          cd /opt/parser-law
+          
+          # Pull latest changes
+          git fetch --all --tags
+          git pull origin main
+          
+          # Migrate database if needed
+          docker exec -i legislatie_postgres psql -U legislatie_user -d monitoring_platform << 'EOF'
+          ALTER TABLE legislatie.acte_legislative ALTER COLUMN metadate TYPE TEXT;
+          EOF
+          
+          # Rebuild containers
+          cd /opt/parser-law
+          docker compose -f db_service/docker-compose.yml down
+          docker compose -f db_service/docker-compose.yml up -d --build
+          
+          # Wait for services to be healthy
+          sleep 15
+          
+          # Verify deployment
+          docker compose -f db_service/docker-compose.yml ps
+          curl -f http://localhost:8000/health || exit 1
+          
+          echo "Deployment completed successfully!"

@@ -16,7 +16,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "parser-law"
-version = "1.0.0"
+version = "2.1.0"
 description = "Parser and API for Romanian legal acts"
 readme = "README.md"
 requires-python = ">=3.11"

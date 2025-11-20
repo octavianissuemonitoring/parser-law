@@ -1,22 +1,34 @@
 """
-AI Processing API Routes - Endpoints for triggering and monitoring AI processing.
+AI Processing API Routes - All AI-related endpoints.
 
-These endpoints are protected with API key authentication.
+Includes:
+1. Document retrieval for AI processing (acts with full structure)
+2. AI processing triggers and monitoring
+3. Status management (mark as processing/processed/error)
+
+These endpoints are used by external AI services and internal automation.
 """
-from typing import Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks, status
+from typing import Optional, List, Dict
+from datetime import datetime
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select, func, and_
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import DBSession, AuthInfo
 from app.services.ai_service import AIService
-from app.models.articol import Articol
-from sqlalchemy import select, func, and_
+from app.models import Articol, ActLegislativ, ActDomeniu, Domeniu
+from app.schemas import DomeniuMinimal
 
 
 router = APIRouter(prefix="/ai", tags=["AI Processing"])
 
 
+# ============================================================================
 # Request/Response Models
+# ============================================================================
+
+# --- Processing Control Models ---
 class ProcessRequest(BaseModel):
     """Request to trigger AI processing."""
     limit: int = Field(10, ge=1, le=100, description="Maximum number of items to process")
@@ -40,6 +52,338 @@ class ProcessStatsResponse(BaseModel):
 
 class AIStatusResponse(BaseModel):
     """Current status of AI processing."""
+    pending_count: int
+    processing_count: int
+    completed_count: int
+    error_count: int
+    total_count: int
+
+
+class ArticleStatusResponse(BaseModel):
+    """Status of a specific article."""
+    id: int
+    numar_articol: str
+    ai_status: str
+    ai_processed_at: Optional[str]
+    ai_error: Optional[str]
+    has_metadata: bool
+    issues_count: int
+
+
+# --- Document Structure Models for AI ---
+class ArticolForAI(BaseModel):
+    """Article structure for AI processing."""
+    id: int
+    articol_nr: Optional[str]
+    articol_label: Optional[str]
+    
+    # Hierarchy
+    titlu_nr: Optional[int]
+    titlu_denumire: Optional[str]
+    capitol_nr: Optional[int]
+    capitol_denumire: Optional[str]
+    sectiune_nr: Optional[int]
+    sectiune_denumire: Optional[str]
+    
+    # Content
+    text_articol: str
+    ordine: Optional[int]
+    
+    # AI Status
+    ai_status: Optional[str]
+    ai_processed_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+
+class ActForAI(BaseModel):
+    """Complete act structure for AI processing."""
+    
+    # Act metadata
+    id: int
+    tip_act: str
+    nr_act: Optional[str]
+    data_act: Optional[str]
+    an_act: Optional[int]
+    titlu_act: str
+    emitent_act: Optional[str]
+    url_legislatie: Optional[str]
+    
+    # AI Status
+    ai_status: Optional[str]
+    ai_processed_at: Optional[datetime]
+    
+    # Domains assigned to this act
+    domenii: List[DomeniuMinimal]
+    
+    # Complete article structure
+    articole: List[ArticolForAI]
+    
+    # Statistics
+    total_articole: int
+    pending_articole: int
+
+
+class ActListItemForAI(BaseModel):
+    """Minimal act info for list view."""
+    id: int
+    tip_act: str
+    nr_act: Optional[str]
+    an_act: Optional[int]
+    titlu_act: str
+    ai_status: Optional[str]
+    total_articole: int
+    pending_articole: int
+    domenii: List[DomeniuMinimal]
+
+
+# ============================================================================
+# ENDPOINTS - Document Retrieval for AI
+# ============================================================================
+
+@router.get("/acte/pending", response_model=List[ActListItemForAI])
+async def get_acts_for_processing(
+    db: DBSession,
+    ai_status: str = Query(default="pending", description="Filter: pending, processing, processed, error"),
+    has_domenii: Optional[bool] = Query(None, description="Filter acts with domains assigned"),
+    limit: int = Query(default=10, ge=1, le=100),
+) -> List[ActListItemForAI]:
+    """
+    **[AI Service]** Get list of acts needing processing.
+    
+    Returns acts filtered by `ai_status` with assigned domains and article counts.
+    Use this to discover which acts need AI analysis.
+    
+    **Flow:**
+    1. Call this endpoint to get acts with `ai_status=pending`
+    2. For each act, call `GET /ai/acte/{id}` to get full structure
+    3. Analyze articles and post issues via `POST /issues/link`
+    """
+    # Build query
+    query = select(ActLegislativ).where(ActLegislativ.ai_status == ai_status)
+    
+    # Filter by domain presence
+    if has_domenii is True:
+        query = query.join(ActDomeniu, ActLegislativ.id == ActDomeniu.act_id)
+    elif has_domenii is False:
+        query = query.outerjoin(ActDomeniu, ActLegislativ.id == ActDomeniu.act_id).where(ActDomeniu.id == None)
+    
+    query = query.order_by(ActLegislativ.created_at.desc()).limit(limit)
+    result = await db.execute(query)
+    acte = result.scalars().all()
+    
+    # Build response with statistics
+    response = []
+    for act in acte:
+        # Get domains
+        domenii_query = (
+            select(Domeniu)
+            .join(ActDomeniu, Domeniu.id == ActDomeniu.domeniu_id)
+            .where(ActDomeniu.act_id == act.id)
+            .where(Domeniu.activ == True)
+        )
+        domenii_result = await db.execute(domenii_query)
+        domenii = domenii_result.scalars().all()
+        
+        # Get article counts
+        total_result = await db.execute(select(func.count()).where(Articol.act_id == act.id))
+        total_articole = total_result.scalar() or 0
+        
+        pending_result = await db.execute(
+            select(func.count()).where(and_(Articol.act_id == act.id, Articol.ai_status == 'pending'))
+        )
+        pending_articole = pending_result.scalar() or 0
+        
+        response.append(ActListItemForAI(
+            id=act.id,
+            tip_act=act.tip_act,
+            nr_act=act.nr_act,
+            an_act=act.an_act,
+            titlu_act=act.titlu_act,
+            ai_status=act.ai_status,
+            total_articole=total_articole,
+            pending_articole=pending_articole,
+            domenii=[DomeniuMinimal(id=d.id, cod=d.cod, denumire=d.denumire, culoare=d.culoare) for d in domenii]
+        ))
+    
+    return response
+
+
+@router.get("/acte/{act_id}", response_model=ActForAI)
+async def get_act_full_structure(
+    act_id: int,
+    db: DBSession,
+    include_processed: bool = Query(default=False, description="Include already processed articles"),
+) -> ActForAI:
+    """
+    **[AI Service]** Get complete act with ALL articles for processing.
+    
+    **This is the main endpoint for retrieving document structure.**
+    
+    Returns:
+    - Act metadata (title, type, year, URL)
+    - All assigned domains
+    - Complete article list with:
+      - Full text (`text_articol`)
+      - Hierarchy info (`titlu_nr`, `capitol_nr`, `sectiune_nr`)
+      - AI processing status
+    
+    **Usage:**
+    ```python
+    act = GET /ai/acte/123
+    
+    for article in act.articole:
+        if article.ai_status == "pending":
+            # Analyze
+            issues = ai_analyze(article.text_articol)
+            
+            # Link issues
+            for domain in act.domenii:
+                POST /issues/link {...}
+    ```
+    """
+    # Get act with relationships
+    query = (
+        select(ActLegislativ)
+        .where(ActLegislativ.id == act_id)
+        .options(selectinload(ActLegislativ.articole))
+    )
+    result = await db.execute(query)
+    act = result.scalar_one_or_none()
+    
+    if not act:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Act {act_id} not found"
+        )
+    
+    # Get domains
+    domenii_query = (
+        select(Domeniu)
+        .join(ActDomeniu, Domeniu.id == ActDomeniu.domeniu_id)
+        .where(ActDomeniu.act_id == act_id)
+        .where(Domeniu.activ == True)
+    )
+    domenii_result = await db.execute(domenii_query)
+    domenii = domenii_result.scalars().all()
+    
+    # Get articles
+    articole_query = select(Articol).where(Articol.act_id == act_id).order_by(Articol.ordine)
+    if not include_processed:
+        articole_query = articole_query.where(Articol.ai_status == 'pending')
+    
+    articole_result = await db.execute(articole_query)
+    articole = articole_result.scalars().all()
+    
+    # Statistics
+    total_result = await db.execute(select(func.count()).where(Articol.act_id == act_id))
+    total_articole = total_result.scalar() or 0
+    
+    pending_result = await db.execute(
+        select(func.count()).where(and_(Articol.act_id == act_id, Articol.ai_status == 'pending'))
+    )
+    pending_articole = pending_result.scalar() or 0
+    
+    return ActForAI(
+        id=act.id,
+        tip_act=act.tip_act,
+        nr_act=act.nr_act,
+        data_act=act.data_act.isoformat() if act.data_act else None,
+        an_act=act.an_act,
+        titlu_act=act.titlu_act,
+        emitent_act=act.emitent_act,
+        url_legislatie=act.url_legislatie,
+        ai_status=act.ai_status,
+        ai_processed_at=act.ai_processed_at,
+        domenii=[DomeniuMinimal(id=d.id, cod=d.cod, denumire=d.denumire, culoare=d.culoare) for d in domenii],
+        articole=[
+            ArticolForAI(
+                id=a.id,
+                articol_nr=a.articol_nr,
+                articol_label=a.articol_label,
+                titlu_nr=a.titlu_nr,
+                titlu_denumire=a.titlu_denumire,
+                capitol_nr=a.capitol_nr,
+                capitol_denumire=a.capitol_denumire,
+                sectiune_nr=a.sectiune_nr,
+                sectiune_denumire=a.sectiune_denumire,
+                text_articol=a.text_articol,
+                ordine=a.ordine,
+                ai_status=a.ai_status,
+                ai_processed_at=a.ai_processed_at,
+            ) for a in articole
+        ],
+        total_articole=total_articole,
+        pending_articole=pending_articole,
+    )
+
+
+@router.post("/articole/{articol_id}/mark-processing", status_code=status.HTTP_204_NO_CONTENT)
+async def mark_article_processing(articol_id: int, db: DBSession):
+    """
+    **[AI Service]** Mark article as currently being processed.
+    
+    Sets `ai_status='processing'` to prevent duplicate processing.
+    Call this before starting AI analysis of an article.
+    """
+    result = await db.execute(select(Articol).where(Articol.id == articol_id))
+    articol = result.scalar_one_or_none()
+    
+    if not articol:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Articol {articol_id} not found")
+    
+    articol.ai_status = 'processing'
+    await db.commit()
+
+
+@router.post("/articole/{articol_id}/mark-processed", status_code=status.HTTP_204_NO_CONTENT)
+async def mark_article_processed(articol_id: int, db: DBSession):
+    """
+    **[AI Service]** Mark article as successfully processed.
+    
+    Sets `ai_status='processed'` and records timestamp.
+    Call this after successfully analyzing article and posting issues.
+    """
+    result = await db.execute(select(Articol).where(Articol.id == articol_id))
+    articol = result.scalar_one_or_none()
+    
+    if not articol:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Articol {articol_id} not found")
+    
+    articol.ai_status = 'processed'
+    articol.ai_processed_at = datetime.utcnow()
+    await db.commit()
+
+
+@router.post("/articole/{articol_id}/mark-error")
+async def mark_article_error(
+    articol_id: int,
+    db: DBSession,
+    error_message: str = Query(..., description="Error message"),
+):
+    """
+    **[AI Service]** Mark article as failed during processing.
+    
+    Sets `ai_status='error'` and stores error message.
+    Call this if AI analysis fails for an article.
+    """
+    result = await db.execute(select(Articol).where(Articol.id == articol_id))
+    articol = result.scalar_one_or_none()
+    
+    if not articol:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Articol {articol_id} not found")
+    
+    articol.ai_status = 'error'
+    articol.ai_error = error_message
+    await db.commit()
+    
+    return {"message": "Article marked as error", "error": error_message}
+
+
+# ============================================================================
+# ENDPOINTS - Processing Control & Monitoring
+# ============================================================================
     pending_count: int
     processing_count: int
     completed_count: int
