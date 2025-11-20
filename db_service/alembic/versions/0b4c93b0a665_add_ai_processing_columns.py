@@ -1,8 +1,8 @@
 """add ai processing columns
 
 Revision ID: 0b4c93b0a665
-Revises: 5417c175c050
-Create Date: 2025-11-20 16:00:57.434212
+Revises: 5f128176a40b
+Create Date: 2025-11-16 18:48:37.956579
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '0b4c93b0a665'
-down_revision: Union[str, Sequence[str], None] = '5417c175c050'
+down_revision: Union[str, Sequence[str], None] = '5f128176a40b'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
