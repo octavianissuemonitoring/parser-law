@@ -47,14 +47,15 @@ For detailed instructions, see Getting Started in docs/getting-started/.
 
 ## 📚 Documentation
 
-- Getting Started (docs/getting-started/) — Setup, local development, deployment
-- Development (docs/development/) — Coding standards, Git workflow, testing
-- Architecture (docs/architecture/) — System design, database, API
-- Features (docs/features/) — Categories, **AI Integration**, web interface
-- Operations (docs/operations/) — Deployment, rollback, monitoring
-- **AI Integration Guide** (docs/features/AI_INTEGRATION.md) — External AI usage, API endpoints, workflow
+### Quick Links
+- **[AI Integration Guide](docs/features/AI_INTEGRATION.md)** — **⭐ NEW v2.1.0** — External AI service integration, complete API reference
+- [Getting Started](docs/getting-started/) — Setup, local development, deployment
+- [Architecture](docs/architecture/) — System design, database schema, API structure
+- [Development Guide](docs/development/) — Coding standards, Git workflow, testing
+- [Features](docs/features/) — Domains, Issues System, Categories, Web UI
+- [Operations](docs/operations/) — Deployment, monitoring, troubleshooting
 
-Full documentation index: docs/README.md
+📖 **Full documentation index**: [docs/README.md](docs/README.md)
 
 ## 🏗️ Project Structure
 
