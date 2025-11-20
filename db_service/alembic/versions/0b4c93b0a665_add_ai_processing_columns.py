@@ -19,26 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema - add only missing articole columns and indexes."""
-    # Columns for acte_legislative already exist in initial schema
-    # Add only missing articole columns
-    op.add_column('articole',
-                  sa.Column('ai_status', sa.String(20), nullable=True),
-                  schema='legislatie')
-    op.add_column('articole',
-                  sa.Column('ai_processed_at', sa.DateTime(timezone=True), nullable=True),
-                  schema='legislatie')
-    op.add_column('articole',
-                  sa.Column('ai_error', sa.Text(), nullable=True),
-                  schema='legislatie')
-    op.add_column('articole',
-                  sa.Column('metadate', sa.Text(), nullable=True),
-                  schema='legislatie')
-    op.add_column('articole',
-                  sa.Column('issue_monitoring_id', sa.Integer(), nullable=True),
-                  schema='legislatie')
-
-    # Create indexes
+    """Upgrade schema - add only indexes (all columns already exist in initial schema)."""
+    # All AI columns already exist in initial schema for both tables
+    # Add only indexes
     op.create_index('idx_acte_ai_status', 'acte_legislative', ['ai_status'], schema='legislatie')
     op.create_index('idx_acte_export_status', 'acte_legislative', ['export_status'], schema='legislatie')
     op.create_index('idx_articole_ai_status', 'articole', ['ai_status'], schema='legislatie')
@@ -49,9 +32,3 @@ def downgrade() -> None:
     op.drop_index('idx_articole_ai_status', table_name='articole', schema='legislatie')
     op.drop_index('idx_acte_export_status', table_name='acte_legislative', schema='legislatie')
     op.drop_index('idx_acte_ai_status', table_name='acte_legislative', schema='legislatie')
-
-    op.drop_column('articole', 'issue_monitoring_id', schema='legislatie')
-    op.drop_column('articole', 'metadate', schema='legislatie')
-    op.drop_column('articole', 'ai_error', schema='legislatie')
-    op.drop_column('articole', 'ai_processed_at', schema='legislatie')
-    op.drop_column('articole', 'ai_status', schema='legislatie')
