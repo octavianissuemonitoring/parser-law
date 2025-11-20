@@ -1,7 +1,7 @@
 """add domenii system
 
 Revision ID: 5417c175c050
-Revises: 5f128176a40b
+Revises: aa4552000831
 Create Date: 2025-11-20 15:59:14.813818
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '5417c175c050'
-down_revision: Union[str, Sequence[str], None] = '5f128176a40b'
+down_revision: Union[str, Sequence[str], None] = 'aa4552000831'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

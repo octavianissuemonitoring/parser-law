@@ -1,7 +1,7 @@
 """add issues system and junction tables
 
 Revision ID: 5f128176a40b
-Revises: aa4552000831
+Revises: 5417c175c050
 Create Date: 2025-11-20 15:58:27.782638
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '5f128176a40b'
-down_revision: Union[str, Sequence[str], None] = 'aa4552000831'
+down_revision: Union[str, Sequence[str], None] = '5417c175c050'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
