@@ -21,7 +21,7 @@
  ai_status            | character varying(20)       |           |          | 'pending'::character varying
  ai_processed_at      | timestamp without time zone |           |          | 
  ai_error             | text                        |           |          | 
- metadate             | text                        |           |          | 
+ metadate             | jsonb                       |           |          | 
  issue_monitoring_id  | integer                     |           |          | 
 Indexes:
     "articole_pkey" PRIMARY KEY, btree (id)

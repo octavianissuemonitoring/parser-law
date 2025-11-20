@@ -1,0 +1,97 @@
+=============================================================================
+DATABASE STRUCTURE COMPARISON REPORT
+=============================================================================
+Generated: 2025-11-20 22:59:28
+LOCAL: Docker container legislatie_postgres (localhost:5432)
+VPS: 109.123.249.228 (legislatie_postgres container)
+
+-----------------------------------------------------------------------------
+SUMMARY
+-----------------------------------------------------------------------------
+Total tables: 14
+Identical: 10
+Different: 4
+
+-----------------------------------------------------------------------------
+TABLE-BY-TABLE RESULTS
+-----------------------------------------------------------------------------
+Table: acte_legislative
+Status: DIFFERENT
+
+ Table: articole
+Status: IDENTICAL
+
+ Table: anexe
+Status: IDENTICAL
+
+ Table: domenii
+Status: IDENTICAL
+
+ Table: issues
+Status: DIFFERENT
+Difference: Line count: LOCAL=22 vs VPS=23; 
+ Table: acte_domenii
+Status: IDENTICAL
+
+ Table: articole_domenii
+Status: IDENTICAL
+
+ Table: acte_issues
+Status: IDENTICAL
+
+ Table: articole_issues
+Status: IDENTICAL
+
+ Table: anexe_issues
+Status: DIFFERENT
+Difference: Line count: LOCAL=22 vs VPS=23; 
+ Table: structure_issues
+Status: IDENTICAL
+
+ Table: acte_modificari
+Status: IDENTICAL
+
+ Table: articole_modificari
+Status: IDENTICAL
+
+ Table: linkuri_legislatie
+Status: DIFFERENT
+Difference: Line count: LOCAL=17 vs VPS=18; 
+
+
+-----------------------------------------------------------------------------
+RECOMMENDATIONS
+-----------------------------------------------------------------------------
+✗ Found 4 table(s) with structural differences.
+  
+  ACTION REQUIRED:
+  1. Review detailed differences in files: local_*_structure.txt vs vps_*_structure.txt
+  2. Identify if differences are due to:
+     - Missing migrations (run alembic upgrade head)
+     - Schema drift (regenerate models from DB)
+     - Manual changes not tracked (create new migration)
+  3. Apply fixes to ensure parity before production deployment
+
+
+-----------------------------------------------------------------------------
+DETAILED STRUCTURE FILES
+-----------------------------------------------------------------------------
+Location: c:\Users\octavian\scraper\parser_law\parser-law\data\export
+Files generated:
+  - local_acte_legislative_structure.txt
+  - vps_acte_legislative_structure.txt   - local_articole_structure.txt
+  - vps_articole_structure.txt   - local_anexe_structure.txt
+  - vps_anexe_structure.txt   - local_domenii_structure.txt
+  - vps_domenii_structure.txt   - local_issues_structure.txt
+  - vps_issues_structure.txt   - local_acte_domenii_structure.txt
+  - vps_acte_domenii_structure.txt   - local_articole_domenii_structure.txt
+  - vps_articole_domenii_structure.txt   - local_acte_issues_structure.txt
+  - vps_acte_issues_structure.txt   - local_articole_issues_structure.txt
+  - vps_articole_issues_structure.txt   - local_anexe_issues_structure.txt
+  - vps_anexe_issues_structure.txt   - local_structure_issues_structure.txt
+  - vps_structure_issues_structure.txt   - local_acte_modificari_structure.txt
+  - vps_acte_modificari_structure.txt   - local_articole_modificari_structure.txt
+  - vps_articole_modificari_structure.txt   - local_linkuri_legislatie_structure.txt
+  - vps_linkuri_legislatie_structure.txt
+
+=============================================================================

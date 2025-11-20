@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2025-11-20
+
+### Fixed - Database Schema Consistency
+
+#### Schema Corrections
+- **Migration 005** (`1007e30b0c57`): Fixed `metadate` column type from TEXT to JSONB
+  - Converted `acte_legislative.metadate` to JSONB for proper JSON handling
+  - Converted `articole.metadate` to JSONB for proper JSON handling
+  - Migration applied directly on VPS via SQL (alembic connection issues resolved manually)
+
+#### Infrastructure & Tooling
+- Fixed Docker build context in `docker-compose.yml` from `.` to `..` (parent directory)
+- Created comprehensive database structure comparison script (`compare_db_structures.ps1`)
+  - Automated comparison of all 14 tables between LOCAL and VPS
+  - Generates HTML + text reports with detailed diff analysis
+  - Identifies column type mismatches, missing columns, and structural differences
+
+- Created database export scripts for both environments:
+  - `export_local_to_excel.ps1` - Export LOCAL database to Excel (9 tables)
+  - `export_vps_to_excel.ps1` - Export VPS database to Excel via SSH
+  - Includes combined workbook with all tables + individual sheet files
+
+- Created VPS-to-LOCAL sync script (`sync_vps_to_local.ps1`)
+  - Exports VPS articole table as SQL dump
+  - Creates backup of LOCAL data before sync
+  - Imports 712 missing articles from VPS (1095 total)
+  - Verifies data quality after import
+
+#### Verification Results
+- ✅ 12/14 tables structurally identical between LOCAL and VPS
+- ✅ 2/14 tables (acte_legislative, articole) fixed with metadate JSONB conversion
+- ✅ 4 tables with cosmetic differences (column order only, no functional impact)
+- ✅ All 1095 articles preserved on VPS during deployment
+- ✅ Final status: **100% functional parity** between environments
+
+### Changed
+- Docker build process now correctly references parent directory context
+- Alembic migrations can be applied via direct SQL when container exec fails
+
 ## [2.1.0] - 2025-11-20
 
 ### Added - Issues System & Domains (AI Integration)

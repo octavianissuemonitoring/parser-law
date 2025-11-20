@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     
     # API Settings
     api_title: str = "Legislatie Database API"
-    api_version: str = "2.1.0"
+    api_version: str = "2.1.1"
     api_description: str = "REST API pentru gestionarea actelor legislative"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
