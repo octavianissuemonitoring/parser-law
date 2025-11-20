@@ -1,0 +1,23 @@
+                                             Table "legislatie.articole_issues"
+     Column      |           Type           | Collation | Nullable |                        Default                         
+-----------------+--------------------------+-----------+----------+--------------------------------------------------------
+ id              | integer                  |           | not null | nextval('legislatie.articole_issues_id_seq'::regclass)
+ articol_id      | integer                  |           | not null | 
+ issue_id        | integer                  |           | not null | 
+ relevance_score | numeric(3,2)             |           |          | 
+ added_at        | timestamp with time zone |           | not null | CURRENT_TIMESTAMP
+ domeniu_id      | integer                  |           | not null | 
+Indexes:
+    "articole_issues_pkey" PRIMARY KEY, btree (id)
+    "idx_articole_issues_articol" btree (articol_id)
+    "idx_articole_issues_domeniu" btree (domeniu_id)
+    "idx_articole_issues_issue" btree (issue_id)
+    "idx_articole_issues_score" btree (relevance_score DESC)
+    "unique_articol_issue_domeniu" UNIQUE CONSTRAINT, btree (articol_id, issue_id, domeniu_id)
+Check constraints:
+    "articole_issues_relevance_score_check" CHECK (relevance_score >= 0.00 AND relevance_score <= 1.00)
+Foreign-key constraints:
+    "articole_issues_articol_id_fkey" FOREIGN KEY (articol_id) REFERENCES legislatie.articole(id) ON DELETE CASCADE
+    "articole_issues_domeniu_id_fkey" FOREIGN KEY (domeniu_id) REFERENCES legislatie.domenii(id) ON DELETE CASCADE
+    "articole_issues_issue_id_fkey" FOREIGN KEY (issue_id) REFERENCES legislatie.issues(id) ON DELETE CASCADE
+

@@ -1,0 +1,25 @@
+                                          Table "legislatie.domenii"
+   Column   |           Type           | Collation | Nullable |                    Default                     
+------------+--------------------------+-----------+----------+------------------------------------------------
+ id         | integer                  |           | not null | nextval('legislatie.domenii_id_seq'::regclass)
+ cod        | character varying(50)    |           | not null | 
+ denumire   | character varying(255)   |           | not null | 
+ descriere  | text                     |           |          | 
+ culoare    | character varying(7)     |           |          | 
+ ordine     | integer                  |           |          | 0
+ activ      | boolean                  |           |          | true
+ created_at | timestamp with time zone |           | not null | CURRENT_TIMESTAMP
+ updated_at | timestamp with time zone |           |          | 
+Indexes:
+    "domenii_pkey" PRIMARY KEY, btree (id)
+    "domenii_cod_key" UNIQUE CONSTRAINT, btree (cod)
+    "idx_domenii_activ_ordine" btree (activ, ordine) WHERE activ = true
+    "idx_domenii_cod" btree (cod)
+Referenced by:
+    TABLE "legislatie.acte_domenii" CONSTRAINT "acte_domenii_domeniu_id_fkey" FOREIGN KEY (domeniu_id) REFERENCES legislatie.domenii(id) ON DELETE CASCADE
+    TABLE "legislatie.acte_issues" CONSTRAINT "acte_issues_domeniu_id_fkey" FOREIGN KEY (domeniu_id) REFERENCES legislatie.domenii(id) ON DELETE CASCADE
+    TABLE "legislatie.anexe_issues" CONSTRAINT "anexe_issues_domeniu_id_fkey" FOREIGN KEY (domeniu_id) REFERENCES legislatie.domenii(id) ON DELETE CASCADE
+    TABLE "legislatie.articole_domenii" CONSTRAINT "articole_domenii_domeniu_id_fkey" FOREIGN KEY (domeniu_id) REFERENCES legislatie.domenii(id) ON DELETE CASCADE
+    TABLE "legislatie.articole_issues" CONSTRAINT "articole_issues_domeniu_id_fkey" FOREIGN KEY (domeniu_id) REFERENCES legislatie.domenii(id) ON DELETE CASCADE
+    TABLE "legislatie.structure_issues" CONSTRAINT "structure_issues_domeniu_id_fkey" FOREIGN KEY (domeniu_id) REFERENCES legislatie.domenii(id) ON DELETE CASCADE
+

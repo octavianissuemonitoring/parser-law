@@ -1,0 +1,35 @@
+                                              Table "legislatie.structure_issues"
+      Column       |           Type           | Collation | Nullable |                         Default                         
+-------------------+--------------------------+-----------+----------+---------------------------------------------------------
+ id                | integer                  |           | not null | nextval('legislatie.structure_issues_id_seq'::regclass)
+ act_id            | integer                  |           | not null | 
+ structure_type    | character varying(20)    |           | not null | 
+ titlu_nr          | character varying(50)    |           |          | 
+ titlu_denumire    | text                     |           |          | 
+ capitol_nr        | character varying(50)    |           |          | 
+ capitol_denumire  | text                     |           |          | 
+ sectiune_nr       | character varying(50)    |           |          | 
+ sectiune_denumire | text                     |           |          | 
+ issue_id          | integer                  |           | not null | 
+ relevance_score   | numeric(3,2)             |           |          | 
+ added_at          | timestamp with time zone |           | not null | CURRENT_TIMESTAMP
+ domeniu_id        | integer                  |           | not null | 
+Indexes:
+    "structure_issues_pkey" PRIMARY KEY, btree (id)
+    "idx_structure_issues_act" btree (act_id)
+    "idx_structure_issues_capitol" btree (act_id, structure_type, capitol_nr) WHERE structure_type::text = 'capitol'::text
+    "idx_structure_issues_domeniu" btree (domeniu_id)
+    "idx_structure_issues_issue" btree (issue_id)
+    "idx_structure_issues_score" btree (relevance_score DESC)
+    "idx_structure_issues_sectiune" btree (act_id, structure_type, sectiune_nr) WHERE structure_type::text = 'sectiune'::text
+    "idx_structure_issues_titlu" btree (act_id, structure_type, titlu_nr) WHERE structure_type::text = 'titlu'::text
+    "idx_structure_issues_type" btree (structure_type)
+    "unique_structure_issue_domeniu" UNIQUE CONSTRAINT, btree (act_id, structure_type, titlu_nr, capitol_nr, sectiune_nr, issue_id, domeniu_id)
+Check constraints:
+    "structure_issues_relevance_score_check" CHECK (relevance_score >= 0.00 AND relevance_score <= 1.00)
+    "structure_issues_structure_type_check" CHECK (structure_type::text = ANY (ARRAY['titlu'::character varying, 'capitol'::character varying, 'sectiune'::character varying]::text[]))
+Foreign-key constraints:
+    "structure_issues_act_id_fkey" FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+    "structure_issues_domeniu_id_fkey" FOREIGN KEY (domeniu_id) REFERENCES legislatie.domenii(id) ON DELETE CASCADE
+    "structure_issues_issue_id_fkey" FOREIGN KEY (issue_id) REFERENCES legislatie.issues(id) ON DELETE CASCADE
+

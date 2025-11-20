@@ -1,0 +1,20 @@
+                                          Table "legislatie.articole_domenii"
+   Column   |           Type           | Collation | Nullable |                         Default                         
+------------+--------------------------+-----------+----------+---------------------------------------------------------
+ id         | integer                  |           | not null | nextval('legislatie.articole_domenii_id_seq'::regclass)
+ articol_id | integer                  |           | not null | 
+ domeniu_id | integer                  |           | not null | 
+ relevanta  | numeric(3,2)             |           |          | 
+ added_at   | timestamp with time zone |           | not null | CURRENT_TIMESTAMP
+ added_by   | character varying(100)   |           |          | 
+Indexes:
+    "articole_domenii_pkey" PRIMARY KEY, btree (id)
+    "articole_domenii_articol_id_domeniu_id_key" UNIQUE CONSTRAINT, btree (articol_id, domeniu_id)
+    "idx_articole_domenii_articol" btree (articol_id)
+    "idx_articole_domenii_domeniu" btree (domeniu_id)
+Check constraints:
+    "articole_domenii_relevanta_check" CHECK (relevanta >= 0.00 AND relevanta <= 1.00)
+Foreign-key constraints:
+    "articole_domenii_articol_id_fkey" FOREIGN KEY (articol_id) REFERENCES legislatie.articole(id) ON DELETE CASCADE
+    "articole_domenii_domeniu_id_fkey" FOREIGN KEY (domeniu_id) REFERENCES legislatie.domenii(id) ON DELETE CASCADE
+

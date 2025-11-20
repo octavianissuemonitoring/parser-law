@@ -1,0 +1,25 @@
+                                                Table "legislatie.acte_modificari"
+       Column        |            Type             | Collation | Nullable |                        Default                         
+---------------------+-----------------------------+-----------+----------+--------------------------------------------------------
+ id                  | integer                     |           | not null | nextval('legislatie.acte_modificari_id_seq'::regclass)
+ act_id              | integer                     |           | not null | 
+ versiune            | integer                     |           | not null | 
+ data_modificare     | timestamp without time zone |           |          | now()
+ tip_modificare      | character varying(50)       |           | not null | 
+ sursa_modificare    | character varying(500)      |           |          | 
+ modificat_de        | character varying(100)      |           |          | 
+ articole_noi        | integer                     |           |          | 0
+ articole_modificate | integer                     |           |          | 0
+ articole_sterse     | integer                     |           |          | 0
+ total_articole      | integer                     |           |          | 0
+ created_at          | timestamp without time zone |           |          | now()
+Indexes:
+    "acte_modificari_pkey" PRIMARY KEY, btree (id)
+    "acte_modificari_act_id_versiune_key" UNIQUE CONSTRAINT, btree (act_id, versiune)
+    "idx_modificari_act_versiune" btree (act_id, versiune)
+    "idx_modificari_data" btree (data_modificare)
+Foreign-key constraints:
+    "acte_modificari_act_id_fkey" FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "legislatie.articole_modificari" CONSTRAINT "articole_modificari_modificare_id_fkey" FOREIGN KEY (modificare_id) REFERENCES legislatie.acte_modificari(id) ON DELETE CASCADE
+

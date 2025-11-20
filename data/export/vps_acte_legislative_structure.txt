@@ -1,0 +1,41 @@
+                                                Table "legislatie.acte_legislative"
+       Column        |            Type             | Collation | Nullable |                         Default                         
+---------------------+-----------------------------+-----------+----------+---------------------------------------------------------
+ id                  | integer                     |           | not null | nextval('legislatie.acte_legislative_id_seq'::regclass)
+ tip_act             | character varying(50)       |           | not null | 
+ nr_act              | character varying(50)       |           |          | 
+ data_act            | date                        |           |          | 
+ an_act              | integer                     |           |          | 
+ titlu_act           | text                        |           | not null | 
+ emitent_act         | character varying(255)      |           |          | 
+ mof_nr              | character varying(50)       |           |          | 
+ mof_data            | date                        |           |          | 
+ mof_an              | integer                     |           |          | 
+ url_legislatie      | character varying(500)      |           | not null | 
+ html_content        | text                        |           |          | 
+ confidence_score    | double precision            |           |          | 
+ versiune            | integer                     |           |          | 1
+ created_at          | timestamp without time zone |           |          | now()
+ updated_at          | timestamp without time zone |           |          | now()
+ ai_status           | character varying(20)       |           |          | 'pending'::character varying
+ ai_processed_at     | timestamp without time zone |           |          | 
+ ai_error            | text                        |           |          | 
+ metadate            | text                        |           |          | 
+ export_status       | character varying(20)       |           |          | 
+ export_at           | timestamp without time zone |           |          | 
+ export_error        | text                        |           |          | 
+ issue_monitoring_id | integer                     |           |          | 
+Indexes:
+    "acte_legislative_pkey" PRIMARY KEY, btree (id)
+    "ix_acte_ai_status" btree (ai_status)
+    "ix_acte_an_act" btree (an_act)
+    "ix_acte_mof_an" btree (mof_an)
+    "ix_acte_tip_act" btree (tip_act)
+Referenced by:
+    TABLE "legislatie.acte_domenii" CONSTRAINT "acte_domenii_act_id_fkey" FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+    TABLE "legislatie.acte_issues" CONSTRAINT "acte_issues_act_id_fkey" FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+    TABLE "legislatie.acte_modificari" CONSTRAINT "acte_modificari_act_id_fkey" FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+    TABLE "legislatie.anexe" CONSTRAINT "anexe_act_id_fkey" FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+    TABLE "legislatie.articole" CONSTRAINT "articole_act_id_fkey" FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+    TABLE "legislatie.structure_issues" CONSTRAINT "structure_issues_act_id_fkey" FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+

@@ -1,0 +1,27 @@
+                                                 Table "legislatie.articole_modificari"
+        Column         |            Type             | Collation | Nullable |                          Default                           
+-----------------------+-----------------------------+-----------+----------+------------------------------------------------------------
+ id                    | integer                     |           | not null | nextval('legislatie.articole_modificari_id_seq'::regclass)
+ modificare_id         | integer                     |           | not null | 
+ articol_id            | integer                     |           |          | 
+ articol_nr            | character varying(20)       |           |          | 
+ articol_label         | character varying(50)       |           |          | 
+ ordine                | integer                     |           |          | 
+ tip_schimbare         | character varying(20)       |           | not null | 
+ text_vechi            | text                        |           |          | 
+ issue_vechi           | text                        |           |          | 
+ explicatie_veche      | text                        |           |          | 
+ text_nou              | text                        |           |          | 
+ necesita_reetichetare | boolean                     |           |          | true
+ reetichetat           | boolean                     |           |          | false
+ reetichetat_la        | timestamp without time zone |           |          | 
+ created_at            | timestamp without time zone |           |          | now()
+Indexes:
+    "articole_modificari_pkey" PRIMARY KEY, btree (id)
+    "idx_articole_modificari_articol" btree (articol_id)
+    "idx_articole_modificari_modificare" btree (modificare_id)
+    "idx_articole_modificari_reetichetare" btree (necesita_reetichetare, reetichetat)
+Foreign-key constraints:
+    "articole_modificari_articol_id_fkey" FOREIGN KEY (articol_id) REFERENCES legislatie.articole(id) ON DELETE SET NULL
+    "articole_modificari_modificare_id_fkey" FOREIGN KEY (modificare_id) REFERENCES legislatie.acte_modificari(id) ON DELETE CASCADE
+

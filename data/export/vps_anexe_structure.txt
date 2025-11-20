@@ -1,0 +1,27 @@
+                                               Table "legislatie.anexe"
+       Column        |           Type           | Collation | Nullable |                   Default                    
+---------------------+--------------------------+-----------+----------+----------------------------------------------
+ id                  | integer                  |           | not null | nextval('legislatie.anexe_id_seq'::regclass)
+ act_id              | integer                  |           | not null | 
+ anexa_nr            | character varying(50)    |           |          | 
+ ordine              | integer                  |           | not null | 
+ titlu               | text                     |           |          | 
+ continut            | text                     |           | not null | 
+ metadate            | text                     |           |          | 
+ ai_status           | character varying(20)    |           |          | 'pending'::character varying
+ ai_processed_at     | timestamp with time zone |           |          | 
+ ai_error            | text                     |           |          | 
+ issue_monitoring_id | integer                  |           |          | 
+ data_creare         | timestamp with time zone |           | not null | CURRENT_TIMESTAMP
+ data_modificare     | timestamp with time zone |           |          | 
+Indexes:
+    "anexe_pkey" PRIMARY KEY, btree (id)
+    "ix_anexe_act_id" btree (act_id)
+    "ix_anexe_issue_monitoring_id" btree (issue_monitoring_id)
+    "ix_anexe_ordine" btree (ordine)
+    "unique_anexa_per_act" UNIQUE CONSTRAINT, btree (act_id, ordine)
+Foreign-key constraints:
+    "anexe_act_id_fkey" FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "legislatie.anexe_issues" CONSTRAINT "anexe_issues_anexa_id_fkey" FOREIGN KEY (anexa_id) REFERENCES legislatie.anexe(id) ON DELETE CASCADE
+

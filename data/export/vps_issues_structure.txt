@@ -1,0 +1,23 @@
+                                               Table "legislatie.issues"
+       Column        |           Type           | Collation | Nullable |                    Default                    
+---------------------+--------------------------+-----------+----------+-----------------------------------------------
+ id                  | integer                  |           | not null | nextval('legislatie.issues_id_seq'::regclass)
+ denumire            | character varying(256)   |           | not null | 
+ descriere           | text                     |           |          | 
+ source              | character varying(20)    |           |          | 'ai'::character varying
+ confidence_score    | numeric(3,2)             |           |          | 
+ issue_monitoring_id | integer                  |           |          | 
+ data_creare         | timestamp with time zone |           | not null | CURRENT_TIMESTAMP
+ data_modificare     | timestamp with time zone |           |          | 
+Indexes:
+    "issues_pkey" PRIMARY KEY, btree (id)
+    "issues_issue_monitoring_id_key" UNIQUE CONSTRAINT, btree (issue_monitoring_id)
+    "ix_issues_data_creare" btree (data_creare)
+    "ix_issues_denumire" btree (denumire)
+    "ix_issues_issue_monitoring_id" btree (issue_monitoring_id)
+Referenced by:
+    TABLE "legislatie.acte_issues" CONSTRAINT "acte_issues_issue_id_fkey" FOREIGN KEY (issue_id) REFERENCES legislatie.issues(id) ON DELETE CASCADE
+    TABLE "legislatie.anexe_issues" CONSTRAINT "anexe_issues_issue_id_fkey" FOREIGN KEY (issue_id) REFERENCES legislatie.issues(id) ON DELETE CASCADE
+    TABLE "legislatie.articole_issues" CONSTRAINT "articole_issues_issue_id_fkey" FOREIGN KEY (issue_id) REFERENCES legislatie.issues(id) ON DELETE CASCADE
+    TABLE "legislatie.structure_issues" CONSTRAINT "structure_issues_issue_id_fkey" FOREIGN KEY (issue_id) REFERENCES legislatie.issues(id) ON DELETE CASCADE
+

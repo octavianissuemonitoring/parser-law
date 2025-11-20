@@ -1,0 +1,38 @@
+                                                 Table "legislatie.articole"
+        Column        |            Type             | Collation | Nullable |                     Default                     
+----------------------+-----------------------------+-----------+----------+-------------------------------------------------
+ id                   | integer                     |           | not null | nextval('legislatie.articole_id_seq'::regclass)
+ act_id               | integer                     |           | not null | 
+ articol_nr           | character varying(20)       |           |          | 
+ articol_label        | character varying(50)       |           |          | 
+ titlu_nr             | integer                     |           |          | 
+ titlu_denumire       | text                        |           |          | 
+ capitol_nr           | integer                     |           |          | 
+ capitol_denumire     | text                        |           |          | 
+ sectiune_nr          | integer                     |           |          | 
+ sectiune_denumire    | text                        |           |          | 
+ subsectiune_nr       | integer                     |           |          | 
+ subsectiune_denumire | text                        |           |          | 
+ text_articol         | text                        |           | not null | 
+ explicatie           | text                        |           |          | 
+ ordine               | integer                     |           |          | 
+ created_at           | timestamp without time zone |           |          | now()
+ updated_at           | timestamp without time zone |           |          | now()
+ ai_status            | character varying(20)       |           |          | 'pending'::character varying
+ ai_processed_at      | timestamp without time zone |           |          | 
+ ai_error             | text                        |           |          | 
+ metadate             | text                        |           |          | 
+ issue_monitoring_id  | integer                     |           |          | 
+Indexes:
+    "articole_pkey" PRIMARY KEY, btree (id)
+    "ix_articole_act_articol" btree (act_id, articol_nr)
+    "ix_articole_act_id" btree (act_id)
+    "ix_articole_act_ordine" btree (act_id, ordine)
+    "ix_articole_ai_status" btree (ai_status)
+Foreign-key constraints:
+    "articole_act_id_fkey" FOREIGN KEY (act_id) REFERENCES legislatie.acte_legislative(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "legislatie.articole_domenii" CONSTRAINT "articole_domenii_articol_id_fkey" FOREIGN KEY (articol_id) REFERENCES legislatie.articole(id) ON DELETE CASCADE
+    TABLE "legislatie.articole_issues" CONSTRAINT "articole_issues_articol_id_fkey" FOREIGN KEY (articol_id) REFERENCES legislatie.articole(id) ON DELETE CASCADE
+    TABLE "legislatie.articole_modificari" CONSTRAINT "articole_modificari_articol_id_fkey" FOREIGN KEY (articol_id) REFERENCES legislatie.articole(id) ON DELETE SET NULL
+
