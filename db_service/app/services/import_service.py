@@ -405,8 +405,8 @@ class ImportService:
             "subsectiune_nr": self._parse_int(row.get('subsectiune_nr')),
             "subsectiune_denumire": row.get('Subsectiune_Den', '').strip() or None,
             "text_articol": text_articol,
-            "issue": row.get('issue', '').strip() or None,
-            "explicatie": row.get('explicatie', '').strip() or None,
+            # Note: 'issue' field removed - now using articole_issues junction table
+            # Note: 'explicatie' deprecated - use 'metadate' field instead
         }
         
         # Only add act_id if provided
