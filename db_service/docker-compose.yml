@@ -26,8 +26,8 @@ services:
   # FastAPI Application
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: db_service/Dockerfile
     container_name: legislatie_api
     environment:
       DATABASE_URL: postgresql://legislatie_user:${DB_PASSWORD:-legislatie_pass_2024}@postgres:5432/monitoring_platform
