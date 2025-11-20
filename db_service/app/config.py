@@ -13,7 +13,8 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore"  # Ignore extra fields in .env (like Docker vars)
+        extra="ignore",  # Ignore extra fields in .env (like Docker vars)
+        env_prefix="",  # No prefix for env vars
     )
     
     # API Settings
