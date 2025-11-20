@@ -38,9 +38,9 @@ services:
       LOG_LEVEL: INFO
     ports:
       - "8000:8000"
-    volumes:
-      - ./app:/app/app
-      - ./alembic:/app/alembic
+    # volumes:
+      # - ./app:/app/app  # DEV ONLY - comment out for production
+      # - ./alembic:/app/alembic  # DEV ONLY - comment out for production
       # Commented out - permission issues with bind mount, using container's internal directory
       # - ../data/rezultate:/app/rezultate  # Mount rezultate pentru import (read-write, shared with scheduler)
     depends_on:
