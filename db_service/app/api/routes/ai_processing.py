@@ -530,7 +530,7 @@ async def get_pending_articles(
     return [
         ArticleStatusResponse(
             id=art.id,
-            numar_articol=art.numar_articol,
+            numar_articol=art.articol_nr,
             ai_status=art.ai_status,
             ai_processed_at=art.ai_processed_at.isoformat() if art.ai_processed_at else None,
             ai_error=art.ai_error,
@@ -564,7 +564,7 @@ async def get_failed_articles(
     return [
         ArticleStatusResponse(
             id=art.id,
-            numar_articol=art.numar_articol,
+            numar_articol=art.articol_nr,
             ai_status=art.ai_status,
             ai_processed_at=art.ai_processed_at.isoformat() if art.ai_processed_at else None,
             ai_error=art.ai_error,
@@ -609,7 +609,7 @@ async def retry_article_processing(
     
     return ArticleStatusResponse(
         id=article.id,
-        numar_articol=article.numar_articol,
+        numar_articol=article.articol_nr,
         ai_status=article.ai_status,
         ai_processed_at=article.ai_processed_at.isoformat() if article.ai_processed_at else None,
         ai_error=article.ai_error,
