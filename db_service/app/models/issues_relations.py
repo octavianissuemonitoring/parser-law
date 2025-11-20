@@ -65,7 +65,12 @@ class ArticolIssue(Base):
         nullable=True,
         comment="AI-assigned relevance (0.00-1.00)"
     )
-    added_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.current_timestamp()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.current_timestamp()
@@ -121,7 +126,7 @@ class ActIssue(Base):
         Numeric(3, 2),
         nullable=True
     )
-    added_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.current_timestamp()
@@ -177,7 +182,7 @@ class AnexaIssue(Base):
         Numeric(3, 2),
         nullable=True
     )
-    added_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.current_timestamp()
@@ -289,7 +294,7 @@ class StructureIssue(Base):
         nullable=True,
         comment="AI-assigned relevance for this structural element and its children"
     )
-    added_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.current_timestamp()

@@ -137,7 +137,7 @@ class ActDomeniu(Base):
         nullable=True,
         comment="Optional relevance score (0.00-1.00) - how relevant is this act to this domain"
     )
-    added_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.current_timestamp()
@@ -199,7 +199,7 @@ class ArticolDomeniu(Base):
         nullable=True,
         comment="Optional relevance score (0.00-1.00)"
     )
-    added_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.current_timestamp()
