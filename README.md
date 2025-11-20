@@ -2,7 +2,7 @@
 
 > Modern API and scraper for Romanian legislation monitoring
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/octavianissuemonitoring/parser-law/releases)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/octavianissuemonitoring/parser-law/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 
@@ -50,8 +50,9 @@ For detailed instructions, see Getting Started in docs/getting-started/.
 - Getting Started (docs/getting-started/) — Setup, local development, deployment
 - Development (docs/development/) — Coding standards, Git workflow, testing
 - Architecture (docs/architecture/) — System design, database, API
-- Features (docs/features/) — Categories, AI processing, web interface
+- Features (docs/features/) — Categories, **AI Integration**, web interface
 - Operations (docs/operations/) — Deployment, rollback, monitoring
+- **AI Integration Guide** (docs/features/AI_INTEGRATION.md) — External AI usage, API endpoints, workflow
 
 Full documentation index: docs/README.md
 
@@ -91,6 +92,9 @@ See PROJECT_STRUCTURE.md for details.
 - Scrape legislation from legislatie.just.ro
 - Parse HTML and extract metadata
 - REST API with full CRUD operations
+- **Issues System** (v2.1.0) - Track legislation issues with AI-generated descriptions
+- **Domain Management** (v2.1.0) - 6 legal domains (Penal, Civil, Administrativ, etc.)
+- **AI Integration** (v2.1.0) - External AI processing endpoints for automated issue detection
 - Category management and assignment
 - Scheduled updates (daily/weekly)
 - Quality checks and validation
