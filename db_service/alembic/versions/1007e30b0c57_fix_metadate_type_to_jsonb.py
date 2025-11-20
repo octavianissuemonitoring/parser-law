@@ -19,18 +19,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Convert metadate column from TEXT to JSONB."""
-    # Convert acte_legislative.metadate from TEXT to JSONB
-    op.execute("""
-        ALTER TABLE legislatie.acte_legislative 
-        ALTER COLUMN metadate TYPE jsonb USING metadate::jsonb
-    """)
-    
-    # Convert articole.metadate from TEXT to JSONB
-    op.execute("""
-        ALTER TABLE legislatie.articole 
-        ALTER COLUMN metadate TYPE jsonb USING metadate::jsonb
-    """)
+    """NO-OP: metadate should remain TEXT type to match model definitions."""
+    # Models define metadate as Text (SQLAlchemy), not JSONB
+    # Keeping this migration as NO-OP for history
+    pass
 
 
 def downgrade() -> None:
@@ -40,9 +32,8 @@ def downgrade() -> None:
         ALTER TABLE legislatie.acte_legislative 
         ALTER COLUMN metadate TYPE text USING metadate::text
     """)
-    
-    # Revert articole.metadate to TEXT
-    op.execute("""
-        ALTER TABLE legislatie.articole 
-        ALTER COLUMN metadate TYPE text USING metadate::text
-    """)
+
+
+def downgrade() -> None:
+    """NO-OP: nothing to revert."""
+    pass
