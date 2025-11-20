@@ -60,6 +60,32 @@ async def health_check():
     }
 
 
+# Debug config endpoint
+@app.get("/debug/config", tags=["Debug"])
+async def debug_config():
+    """Debug endpoint to check database configuration."""
+    from app.database import engine
+    db_url = settings.database_url
+    # Mask password
+    if "@" in db_url and ":" in db_url:
+        parts = db_url.split("@")
+        user_pass = parts[0].split("//")[1]
+        if ":" in user_pass:
+            user, _ = user_pass.split(":")
+            masked_url = db_url.replace(user_pass, f"{user}:***")
+        else:
+            masked_url = db_url
+    else:
+        masked_url = "***"
+    
+    return {
+        "database_url": masked_url,
+        "async_database_url": settings.async_database_url.replace(masked_url.split(":")[-2], "***") if ":" in masked_url else "***",
+        "engine_url": str(engine.url),
+        "db_schema": settings.db_schema,
+    }
+
+
 # Root endpoint
 @app.get("/", tags=["Root"])
 async def root():
