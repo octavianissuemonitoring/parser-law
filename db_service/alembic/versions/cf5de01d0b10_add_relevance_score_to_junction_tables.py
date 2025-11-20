@@ -19,39 +19,60 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Add relevance_score column to all junction tables."""
-    # Add relevance_score to articole_issues
-    op.add_column(
-        'articole_issues',
-        sa.Column('relevance_score', sa.Float(), nullable=True),
-        schema='legislatie'
-    )
+    """Add relevance_score column to junction tables."""
+    from sqlalchemy import inspect
+    from alembic import context
     
-    # Add relevance_score to acte_issues
-    op.add_column(
-        'acte_issues',
-        sa.Column('relevance_score', sa.Float(), nullable=True),
-        schema='legislatie'
-    )
+    conn = context.get_bind()
+    inspector = inspect(conn)
     
-    # Add relevance_score to structure_issues
-    op.add_column(
-        'structure_issues',
-        sa.Column('relevance_score', sa.Float(), nullable=True),
-        schema='legislatie'
-    )
+    # Get list of tables in legislatie schema
+    tables = inspector.get_table_names(schema='legislatie')
     
-    # Add relevance_score to domenii_issues
-    op.add_column(
-        'domenii_issues',
-        sa.Column('relevance_score', sa.Float(), nullable=True),
-        schema='legislatie'
-    )
+    # Add relevance_score to each junction table if it exists
+    if 'articole_issues' in tables:
+        op.add_column(
+            'articole_issues',
+            sa.Column('relevance_score', sa.Float(), nullable=True),
+            schema='legislatie'
+        )
+    
+    if 'acte_issues' in tables:
+        op.add_column(
+            'acte_issues',
+            sa.Column('relevance_score', sa.Float(), nullable=True),
+            schema='legislatie'
+        )
+    
+    if 'structure_issues' in tables:
+        op.add_column(
+            'structure_issues',
+            sa.Column('relevance_score', sa.Float(), nullable=True),
+            schema='legislatie'
+        )
+    
+    if 'domenii_issues' in tables:
+        op.add_column(
+            'domenii_issues',
+            sa.Column('relevance_score', sa.Float(), nullable=True),
+            schema='legislatie'
+        )
 
 
 def downgrade() -> None:
     """Remove relevance_score column from junction tables."""
-    op.drop_column('domenii_issues', 'relevance_score', schema='legislatie')
-    op.drop_column('structure_issues', 'relevance_score', schema='legislatie')
-    op.drop_column('acte_issues', 'relevance_score', schema='legislatie')
-    op.drop_column('articole_issues', 'relevance_score', schema='legislatie')
+    from sqlalchemy import inspect
+    from alembic import context
+    
+    conn = context.get_bind()
+    inspector = inspect(conn)
+    tables = inspector.get_table_names(schema='legislatie')
+    
+    if 'domenii_issues' in tables:
+        op.drop_column('domenii_issues', 'relevance_score', schema='legislatie')
+    if 'structure_issues' in tables:
+        op.drop_column('structure_issues', 'relevance_score', schema='legislatie')
+    if 'acte_issues' in tables:
+        op.drop_column('acte_issues', 'relevance_score', schema='legislatie')
+    if 'articole_issues' in tables:
+        op.drop_column('articole_issues', 'relevance_score', schema='legislatie')
