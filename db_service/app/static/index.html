@@ -865,6 +865,32 @@
                         console.log('Nu s-au putut încărca categoriile pentru actul', act.id);
                     }
                     
+                    // Fetch domenii for this act
+                    let domeniiHTML = '';
+                    try {
+                        const domResponse = await fetch(`${API_BASE}/domenii/acte/${act.id}`);
+                        if (domResponse.ok) {
+                            const domenii = await domResponse.json();
+                            if (domenii && domenii.length > 0) {
+                                domeniiHTML = `
+                                    <div class="act-categories" style="margin-top: 10px;">
+                                        <div class="categories-label">🎯 Domenii:</div>
+                                        <div class="category-tags">
+                                            ${domenii.map(dom => `
+                                                <span class="category-tag" style="background: ${dom.culoare || '#28a745'}">
+                                                    ${dom.denumire}
+                                                    <span class="remove-cat" onclick="removeDomeniu(${act.id}, ${dom.id}, event)" title="Elimină domeniul">×</span>
+                                                </span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        }
+                    } catch (error) {
+                        console.log('Nu s-au putut încărca domeniile pentru actul', act.id);
+                    }
+                    
                     card.innerHTML = `
                         <button class="btn-delete-act" onclick="deleteAct(${act.id}, event)" title="Șterge act">
                             🗑️ Șterge
@@ -880,9 +906,13 @@
                             ${act.metadate ? (typeof act.metadate === 'string' ? act.metadate.substring(0, 150) + '...' : '') : 'Click pentru detalii...'}
                         </div>
                         ${categoriesHTML}
-                        <div style="margin-top: 15px;">
+                        ${domeniiHTML}
+                        <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                             <button class="btn-manage-categories" onclick="openCategoriesModal(${act.id}, event)">
                                 🏷️ Gestionează Categorii
+                            </button>
+                            <button class="btn-manage-categories" onclick="openDomeniiModal(${act.id}, event)" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                                🎯 Gestionează Domenii
                             </button>
                         </div>
                     `;
@@ -1133,6 +1163,132 @@
         let currentActIdForCategories = null;
         let allCategories = [];
         
+        // Domenii Management
+        let currentActIdForDomenii = null;
+        let allDomenii = [];
+        
+        async function openDomeniiModal(actId, event) {
+            event.stopPropagation();
+            currentActIdForDomenii = actId;
+            
+            const modal = document.getElementById('domenii-modal');
+            modal.style.display = 'block';
+            
+            await loadAllDomenii();
+            await loadActDomeniiForModal(actId);
+        }
+        
+        function closeDomeniiModal() {
+            document.getElementById('domenii-modal').style.display = 'none';
+            currentActIdForDomenii = null;
+        }
+        
+        async function loadAllDomenii() {
+            try {
+                const response = await fetch(`${API_BASE}/domenii?limit=100&activ=true`);
+                if (response.ok) {
+                    const data = await response.json();
+                    allDomenii = data.items || [];
+                } else {
+                    allDomenii = [];
+                }
+            } catch (error) {
+                console.error('Error loading domenii:', error);
+                allDomenii = [];
+            }
+        }
+        
+        async function loadActDomeniiForModal(actId) {
+            const container = document.getElementById('domenii-checkbox-list');
+            
+            if (allDomenii.length === 0) {
+                container.innerHTML = `
+                    <div class="no-categories-message">
+                        <p>📭 Nu există domenii disponibile.</p>
+                        <p style="margin-top: 10px; font-size: 0.9em;">
+                            Adaugă domenii folosind API-ul sau baza de date.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let currentDomenii = [];
+            try {
+                const response = await fetch(`${API_BASE}/domenii/acte/${actId}`);
+                if (response.ok) {
+                    currentDomenii = await response.json();
+                }
+            } catch (error) {
+                console.log('Could not load act domenii');
+            }
+            
+            const currentDomeniiIds = currentDomenii.map(dom => dom.id);
+            
+            container.innerHTML = allDomenii.map(dom => `
+                <div class="category-checkbox-item">
+                    <input type="checkbox" 
+                           id="dom-${dom.id}" 
+                           value="${dom.id}"
+                           ${currentDomeniiIds.includes(dom.id) ? 'checked' : ''}>
+                    <label for="dom-${dom.id}">
+                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${dom.culoare || '#28a745'}; margin-right: 8px;"></span>
+                        <strong>${dom.cod}</strong> - ${dom.denumire}
+                        ${dom.descriere ? `<span style="color: #999; font-size: 0.85em; display: block; margin-left: 18px;"> ${dom.descriere.substring(0, 80)}...</span>` : ''}
+                    </label>
+                </div>
+            `).join('');
+        }
+        
+        async function saveActDomenii() {
+            if (!currentActIdForDomenii) return;
+            
+            const checkboxes = document.querySelectorAll('#domenii-checkbox-list input[type="checkbox"]:checked');
+            const selectedDomeniiIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            
+            try {
+                const response = await fetch(`${API_BASE}/domenii/acte/${currentActIdForDomenii}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(selectedDomeniiIds)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save domenii');
+                }
+                
+                closeDomeniiModal();
+                loadActs();
+                alert(`✅ Domeniile au fost actualizate cu succes!`);
+            } catch (error) {
+                console.error('Error saving domenii:', error);
+                alert('❌ Eroare la salvarea domeniilor: ' + error.message);
+            }
+        }
+        
+        async function removeDomeniu(actId, domeniuId, event) {
+            event.stopPropagation();
+            
+            if (!confirm('Sigur vrei să elimini acest domeniu?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/domenii/acte/${actId}/unassign/${domeniuId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to remove domeniu');
+                }
+                
+                loadActs();
+            } catch (error) {
+                console.error('Error removing domeniu:', error);
+                alert('❌ Eroare la eliminarea domeniului');
+            }
+        }
+        
         async function openCategoriesModal(actId, event) {
             event.stopPropagation();
             currentActIdForCategories = actId;
@@ -1152,11 +1308,16 @@
             currentActIdForCategories = null;
         }
         
-        // Close modal when clicking outside
+        // Close modals when clicking outside
         window.onclick = function(event) {
-            const modal = document.getElementById('categories-modal');
-            if (event.target === modal) {
+            const categoriesModal = document.getElementById('categories-modal');
+            const domeniiModal = document.getElementById('domenii-modal');
+            
+            if (event.target === categoriesModal) {
                 closeCategoriesModal();
+            }
+            if (event.target === domeniiModal) {
+                closeDomeniiModal();
             }
         }
         
@@ -1303,6 +1464,29 @@
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="closeCategoriesModal()">Anulează</button>
                     <button class="btn btn-primary" onclick="saveActCategories()">💾 Salvează</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal pentru gestionarea domeniilor -->
+    <div id="domenii-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎯 Gestionare Domenii</h2>
+                <span class="close-modal" onclick="closeDomeniiModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="category-select-container">
+                    <label class="categories-label">Selectează domeniile pentru acest act:</label>
+                    <div id="domenii-checkbox-list" class="category-checkbox-list" style="max-height: 500px; overflow-y: auto;">
+                        <div class="loading-spinner"></div>
+                        <p style="text-align: center;">Se încarcă domeniile...</p>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeDomeniiModal()">Anulează</button>
+                    <button class="btn btn-primary" onclick="saveActDomenii()">💾 Salvează</button>
                 </div>
             </div>
         </div>

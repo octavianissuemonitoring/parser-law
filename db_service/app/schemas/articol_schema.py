@@ -2,7 +2,7 @@
 Pydantic schemas for Articol.
 """
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 from app.schemas.issue_schema import IssueWithContext
@@ -10,6 +10,10 @@ from app.schemas.domeniu_schema import DomeniuWithSource
 
 if TYPE_CHECKING:
     from app.schemas.act_schema import ActLegislativResponse
+
+
+# AI Status type
+AIStatusType = Literal[0, 1, 2, 9]  # 0=not_processed, 1=processing, 2=processed, 9=error
 
 
 # Base schema - common fields
@@ -64,6 +68,11 @@ class ArticolUpdate(BaseModel):
     text_articol: Optional[str] = None
     explicatie: Optional[str] = None  # DEPRECATED
     ordine: Optional[int] = None
+    
+    # AI processing fields
+    ai_status: Optional[AIStatusType] = Field(None, description="AI status: 0=not_processed, 1=processing, 2=processed, 9=error")
+    ai_status_message: Optional[str] = Field(None, description="Optional message explaining status (error details, notes, etc)")
+    metadate: Optional[str] = Field(None, description="AI-generated metadata/summary")
 
 
 # Schema for updating labels only (for LLM integration) - DEPRECATED
@@ -81,6 +90,10 @@ class ArticolResponse(ArticolBase):
     
     id: int
     act_id: int
+    ai_status: int = Field(default=0, description="AI processing status")
+    ai_processed_at: Optional[datetime] = Field(None, description="When AI processing completed")
+    ai_status_message: Optional[str] = Field(None, description="Optional status message")
+    metadate: Optional[str] = Field(None, description="AI-generated summary")
     created_at: datetime
     updated_at: datetime
 
@@ -138,6 +151,27 @@ class ArticolWithIssues(ArticolResponse):
 class ArticolWithFullContext(ArticolWithIssues):
     """Article with complete context: issues, domains, and AI status."""
     
-    ai_status: Optional[str] = Field(None, description="AI processing status")
-    ai_processed_at: Optional[datetime] = Field(None, description="AI processing timestamp")
-    metadate: Optional[str] = Field(None, description="AI-generated metadata/summary")
+    # AI status is already in ArticolResponse, just keeping for clarity
+    pass
+
+
+# ============================================================================
+# AI Service Integration Schemas
+# ============================================================================
+
+class ArticolAIStatusUpdate(BaseModel):
+    """Schema for AI service to update article processing status."""
+    
+    article_ids: list[int] = Field(..., description="List of article IDs to update")
+    ai_status: AIStatusType = Field(..., description="New AI status: 0=not_processed, 1=processing, 2=processed, 9=error")
+    ai_status_message: Optional[str] = Field(None, description="Optional message (error details, processing notes, etc)")
+    metadate: Optional[str] = Field(None, description="AI-generated summary (when status=2)")
+
+
+class ArticolAIBatchResponse(BaseModel):
+    """Response for batch AI status updates."""
+    
+    success: bool
+    updated_count: int
+    failed_ids: list[int] = Field(default_factory=list)
+    message: str
