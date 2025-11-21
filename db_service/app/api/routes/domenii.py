@@ -175,6 +175,116 @@ async def delete_domeniu(
 # Act-Domeniu Assignments
 # ============================================================================
 
+@router.get("/acte/{act_id}")
+async def get_act_domenii(
+    act_id: int,
+    db: DBSession,
+):
+    """
+    Get all domains assigned to a legislative act.
+    
+    Returns list of domains with assignment details (relevanta).
+    """
+    # Verify act exists
+    act_result = await db.execute(select(ActLegislativ).where(ActLegislativ.id == act_id))
+    if not act_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Act with id {act_id} not found"
+        )
+    
+    # Get domains for this act with relevanta
+    result = await db.execute(
+        select(Domeniu, ActDomeniu.relevanta)
+        .join(ActDomeniu, ActDomeniu.domeniu_id == Domeniu.id)
+        .where(ActDomeniu.act_id == act_id)
+        .order_by(Domeniu.ordine, Domeniu.denumire)
+    )
+    
+    items = []
+    for row in result.all():
+        domeniu = row[0]
+        relevanta = row[1]
+        items.append({
+            "id": domeniu.id,
+            "cod": domeniu.cod,
+            "denumire": domeniu.denumire,
+            "descriere": domeniu.descriere,
+            "culoare": domeniu.culoare,
+            "ordine": domeniu.ordine,
+            "activ": domeniu.activ,
+            "relevanta": relevanta,
+        })
+    
+    return items
+
+
+@router.put("/acte/{act_id}")
+async def replace_act_domenii(
+    act_id: int,
+    domenii_ids: list[int],
+    db: DBSession,
+):
+    """
+    Replace ALL domains for an act with a new set.
+    
+    This will:
+    1. Remove all existing domain assignments
+    2. Add the new ones provided
+    
+    **Request Body:**
+    ```json
+    [1, 3, 5, 7]
+    ```
+    
+    **Returns:**
+    ```json
+    {
+        "act_id": 1,
+        "removed": 3,
+        "added": 4,
+        "message": "Domains replaced successfully"
+    }
+    ```
+    """
+    # Verify act exists
+    act_result = await db.execute(select(ActLegislativ).where(ActLegislativ.id == act_id))
+    if not act_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Act with id {act_id} not found"
+        )
+    
+    # Remove all existing assignments
+    delete_result = await db.execute(
+        delete(ActDomeniu).where(ActDomeniu.act_id == act_id)
+    )
+    removed_count = delete_result.rowcount
+    
+    # Add new assignments
+    added_count = 0
+    for domeniu_id in domenii_ids:
+        # Verify domeniu exists
+        domeniu_result = await db.execute(select(Domeniu).where(Domeniu.id == domeniu_id))
+        if domeniu_result.scalar_one_or_none():
+            db_assignment = ActDomeniu(
+                act_id=act_id,
+                domeniu_id=domeniu_id,
+                relevanta=1.0,  # Default relevance
+            )
+            db.add(db_assignment)
+            added_count += 1
+    
+    await db.commit()
+    
+    return {
+        "act_id": act_id,
+        "removed": removed_count,
+        "added": added_count,
+        "message": "Domains replaced successfully"
+    }
+
+
 @router.post("/acte/{act_id}/assign", status_code=status.HTTP_201_CREATED)
 async def assign_domeniu_to_act(
     act_id: int,
