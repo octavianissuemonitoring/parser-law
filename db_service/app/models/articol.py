@@ -70,21 +70,23 @@ class Articol(Base):
     )
     
     # AI Processing Status
-    ai_status: Mapped[Optional[str]] = mapped_column(
-        String(20),
-        nullable=True,
-        default="pending",
-        comment="AI processing status: pending, processing, completed, error"
+    # 0 = Neprocesate, 1 = In procesare, 2 = Procesate, 9 = Eroare
+    ai_status: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        comment="AI processing status: 0=not_processed, 1=processing, 2=processed, 9=error"
     )
     ai_processed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         comment="Timestamp when AI processing completed"
     )
-    ai_error: Mapped[Optional[str]] = mapped_column(
+    ai_status_message: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
-        comment="AI processing error message if any"
+        comment="Optional message explaining the status (e.g., error details, processing notes)"
     )
     
     # Export to Issue Monitoring
