@@ -196,9 +196,8 @@ async def get_acts_for_processing(
     2. For each act, call `GET /ai/acte/{id}` to get full structure
     3. Analyze articles and post issues via `POST /issues/link`
     """
-    # Build query - convert string status to int
-    status_int = status_to_int(ai_status)
-    query = select(ActLegislativ).where(ActLegislativ.ai_status == status_int)
+    # Build query - ActLegislativ uses string status
+    query = select(ActLegislativ).where(ActLegislativ.ai_status == ai_status)
     
     # Filter by domain presence
     if has_domenii is True:
@@ -238,7 +237,7 @@ async def get_acts_for_processing(
             nr_act=act.nr_act,
             an_act=act.an_act,
             titlu_act=act.titlu_act,
-            ai_status=status_to_str(act.ai_status),
+            ai_status=act.ai_status,  # ActLegislativ uses string
             total_articole=total_articole,
             pending_articole=pending_articole,
             domenii=[DomeniuMinimal(id=d.id, cod=d.cod, denumire=d.denumire, culoare=d.culoare) for d in domenii]
