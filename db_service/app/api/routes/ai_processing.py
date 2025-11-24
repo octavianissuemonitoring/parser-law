@@ -228,7 +228,7 @@ async def get_acts_for_processing(
         total_articole = total_result.scalar() or 0
         
         pending_result = await db.execute(
-            select(func.count()).where(and_(Articol.act_id == act.id, Articol.ai_status == 'pending'))
+            select(func.count()).where(and_(Articol.act_id == act.id, Articol.ai_status == AI_STATUS_PENDING))
         )
         pending_articole = pending_result.scalar() or 0
         
@@ -308,7 +308,7 @@ async def get_act_full_structure(
     # Get articles
     articole_query = select(Articol).where(Articol.act_id == act_id).order_by(Articol.ordine)
     if not include_processed:
-        articole_query = articole_query.where(Articol.ai_status == 'pending')
+        articole_query = articole_query.where(Articol.ai_status == AI_STATUS_PENDING)
     
     articole_result = await db.execute(articole_query)
     articole = articole_result.scalars().all()
@@ -318,7 +318,7 @@ async def get_act_full_structure(
     total_articole = total_result.scalar() or 0
     
     pending_result = await db.execute(
-        select(func.count()).where(and_(Articol.act_id == act_id, Articol.ai_status == 'pending'))
+        select(func.count()).where(and_(Articol.act_id == act_id, Articol.ai_status == AI_STATUS_PENDING))
     )
     pending_articole = pending_result.scalar() or 0
     
@@ -558,7 +558,7 @@ async def get_pending_articles(
     Returns articles with ai_status='pending', ordered by creation date.
     """
     stmt = select(Articol).where(
-        Articol.ai_status == "pending"
+        Articol.ai_status == AI_STATUS_PENDING
     ).order_by(Articol.id.desc()).limit(limit)
     
     result = await session.execute(stmt)
@@ -592,7 +592,7 @@ async def get_failed_articles(
     Returns articles with ai_status='error', includes error messages.
     """
     stmt = select(Articol).where(
-        Articol.ai_status == "error"
+        Articol.ai_status == AI_STATUS_ERROR
     ).order_by(Articol.ai_processed_at.desc()).limit(limit)
     
     result = await session.execute(stmt)
@@ -679,7 +679,7 @@ async def reset_article_status(
             detail=f"Article {article_id} not found"
         )
     
-    article.ai_status = "pending"
+    article.ai_status = AI_STATUS_PENDING
     article.ai_error = None
     article.ai_processed_at = None
     
