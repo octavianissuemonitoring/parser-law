@@ -70,11 +70,11 @@ class Articol(Base):
     )
     
     # AI Processing Status
-    ai_status: Mapped[Optional[str]] = mapped_column(
-        String(20),
-        nullable=True,
-        default="pending",
-        comment="AI processing status: pending, processing, completed, error"
+    ai_status: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="AI processing status: 0=pending, 1=processing, 2=completed, 3=error"
     )
     ai_processed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),

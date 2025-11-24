@@ -25,6 +25,42 @@ router = APIRouter(prefix="/ai", tags=["AI Processing"])
 
 
 # ============================================================================
+# AI Status Constants
+# ============================================================================
+AI_STATUS_PENDING = 0
+AI_STATUS_PROCESSING = 1
+AI_STATUS_COMPLETED = 2
+AI_STATUS_ERROR = 3
+
+# Mapping string names to integer values
+AI_STATUS_MAP = {
+    "pending": AI_STATUS_PENDING,
+    "processing": AI_STATUS_PROCESSING,
+    "completed": AI_STATUS_COMPLETED,
+    "processed": AI_STATUS_COMPLETED,  # Alias
+    "error": AI_STATUS_ERROR,
+}
+
+# Reverse mapping
+AI_STATUS_NAMES = {
+    AI_STATUS_PENDING: "pending",
+    AI_STATUS_PROCESSING: "processing",
+    AI_STATUS_COMPLETED: "completed",
+    AI_STATUS_ERROR: "error",
+}
+
+
+def status_to_int(status_str: str) -> int:
+    """Convert string status to integer."""
+    return AI_STATUS_MAP.get(status_str.lower(), AI_STATUS_PENDING)
+
+
+def status_to_str(status_int: int) -> str:
+    """Convert integer status to string."""
+    return AI_STATUS_NAMES.get(status_int, "pending")
+
+
+# ============================================================================
 # Request/Response Models
 # ============================================================================
 
@@ -160,8 +196,9 @@ async def get_acts_for_processing(
     2. For each act, call `GET /ai/acte/{id}` to get full structure
     3. Analyze articles and post issues via `POST /issues/link`
     """
-    # Build query
-    query = select(ActLegislativ).where(ActLegislativ.ai_status == ai_status)
+    # Build query - convert string status to int
+    status_int = status_to_int(ai_status)
+    query = select(ActLegislativ).where(ActLegislativ.ai_status == status_int)
     
     # Filter by domain presence
     if has_domenii is True:
@@ -201,7 +238,7 @@ async def get_acts_for_processing(
             nr_act=act.nr_act,
             an_act=act.an_act,
             titlu_act=act.titlu_act,
-            ai_status=act.ai_status,
+            ai_status=status_to_str(act.ai_status),
             total_articole=total_articole,
             pending_articole=pending_articole,
             domenii=[DomeniuMinimal(id=d.id, cod=d.cod, denumire=d.denumire, culoare=d.culoare) for d in domenii]
@@ -333,7 +370,7 @@ async def mark_article_processing(articol_id: int, db: DBSession):
     if not articol:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Articol {articol_id} not found")
     
-    articol.ai_status = 'processing'
+    articol.ai_status = AI_STATUS_PROCESSING
     await db.commit()
 
 
@@ -351,7 +388,7 @@ async def mark_article_processed(articol_id: int, db: DBSession):
     if not articol:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Articol {articol_id} not found")
     
-    articol.ai_status = 'processed'
+    articol.ai_status = AI_STATUS_COMPLETED
     articol.ai_processed_at = datetime.utcnow()
     await db.commit()
 
@@ -374,7 +411,7 @@ async def mark_article_error(
     if not articol:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Articol {articol_id} not found")
     
-    articol.ai_status = 'error'
+    articol.ai_status = AI_STATUS_ERROR
     articol.ai_error = error_message
     await db.commit()
     
