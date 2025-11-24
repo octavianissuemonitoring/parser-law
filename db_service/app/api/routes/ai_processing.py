@@ -346,7 +346,7 @@ async def get_act_full_structure(
                 sectiune_denumire=a.sectiune_denumire,
                 text_articol=a.text_articol,
                 ordine=a.ordine,
-                ai_status=a.ai_status,
+                ai_status=status_to_str(a.ai_status),  # Articol uses integer
                 ai_processed_at=a.ai_processed_at,
             ) for a in articole
         ],
@@ -567,7 +567,7 @@ async def get_pending_articles(
         ArticleStatusResponse(
             id=art.id,
             numar_articol=art.articol_nr,
-            ai_status=art.ai_status,
+            ai_status=status_to_str(art.ai_status),  # Convert int to string
             ai_processed_at=art.ai_processed_at.isoformat() if art.ai_processed_at else None,
             ai_error=art.ai_error,
             has_metadata=bool(art.metadate),
@@ -601,7 +601,7 @@ async def get_failed_articles(
         ArticleStatusResponse(
             id=art.id,
             numar_articol=art.articol_nr,
-            ai_status=art.ai_status,
+            ai_status=status_to_str(art.ai_status),  # Convert int to string
             ai_processed_at=art.ai_processed_at.isoformat() if art.ai_processed_at else None,
             ai_error=art.ai_error,
             has_metadata=bool(art.metadate),
@@ -646,7 +646,7 @@ async def retry_article_processing(
     return ArticleStatusResponse(
         id=article.id,
         numar_articol=article.articol_nr,
-        ai_status=article.ai_status,
+        ai_status=status_to_str(article.ai_status),  # Convert int to string
         ai_processed_at=article.ai_processed_at.isoformat() if article.ai_processed_at else None,
         ai_error=article.ai_error,
         has_metadata=bool(article.metadate),
