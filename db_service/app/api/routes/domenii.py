@@ -209,7 +209,7 @@ async def get_act_domenii(
             "denumire": domeniu.denumire,
             "culoare": domeniu.culoare,
             "relevanta": float(assignment.relevanta) if assignment.relevanta else None,
-            "created_at": assignment.created_at.isoformat(),
+            "added_at": assignment.added_at.isoformat(),
         })
     
     return {"act_id": act_id, "domenii": result}
