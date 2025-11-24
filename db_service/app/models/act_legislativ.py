@@ -138,19 +138,19 @@ class ActLegislativ(Base):
         "ActIssue",
         back_populates="act",
         cascade="all, delete-orphan",
-        lazy="selectin"
+        lazy="noload"  # Changed from selectin to avoid auto-loading
     )
     acte_domenii: Mapped[List["ActDomeniu"]] = relationship(
         "ActDomeniu",
         back_populates="act",
         cascade="all, delete-orphan",
-        lazy="selectin"
+        lazy="noload"  # Changed from selectin to avoid auto-loading
     )
     structure_issues: Mapped[List["StructureIssue"]] = relationship(
         "StructureIssue",
         back_populates="act",
         cascade="all, delete-orphan",
-        lazy="selectin"
+        lazy="noload"  # Changed from selectin to avoid auto-loading
     )
     
     def __repr__(self) -> str:

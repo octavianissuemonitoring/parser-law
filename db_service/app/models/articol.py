@@ -126,13 +126,13 @@ class Articol(Base):
         "ArticolIssue",
         back_populates="articol",
         cascade="all, delete-orphan",
-        lazy="selectin"
+        lazy="noload"  # Changed from selectin to avoid auto-loading
     )
     articole_domenii: Mapped[List["ArticolDomeniu"]] = relationship(
         "ArticolDomeniu",
         back_populates="articol",
         cascade="all, delete-orphan",
-        lazy="selectin"
+        lazy="noload"  # Changed from selectin to avoid auto-loading
     )
     
     # Indexes for performance

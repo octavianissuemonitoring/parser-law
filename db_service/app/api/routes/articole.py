@@ -101,6 +101,8 @@ async def get_articol(articol_id: int, db: DBSession) -> ArticolResponse:
     Get a specific article by ID.
     
     - **articol_id**: The ID of the article
+    
+    Returns article with effective domains (explicit or inherited from act).
     """
     query = select(Articol).where(Articol.id == articol_id)
     result = await db.execute(query)
@@ -112,7 +114,55 @@ async def get_articol(articol_id: int, db: DBSession) -> ArticolResponse:
             detail=f"Articol cu ID {articol_id} nu a fost găsit",
         )
     
-    return articol
+    # Get effective domains (explicit or inherited)
+    from app.models import ArticolDomeniu, ActDomeniu, Domeniu
+    
+    # Check for explicit domains
+    explicit_domenii = await db.execute(
+        select(ArticolDomeniu, Domeniu)
+        .join(Domeniu, ArticolDomeniu.domeniu_id == Domeniu.id)
+        .where(ArticolDomeniu.articol_id == articol_id)
+        .order_by(Domeniu.ordine, Domeniu.denumire)
+    )
+    
+    domenii_list = []
+    has_explicit = False
+    
+    for assignment, domeniu in explicit_domenii:
+        has_explicit = True
+        domenii_list.append({
+            "id": domeniu.id,  # Changed from domeniu_id to match schema
+            "cod": domeniu.cod,
+            "denumire": domeniu.denumire,
+            "culoare": domeniu.culoare,
+            "source": "explicit"
+        })
+    
+    # If no explicit domains, inherit from act
+    if not has_explicit:
+        inherited_domenii = await db.execute(
+            select(ActDomeniu, Domeniu)
+            .join(Domeniu, ActDomeniu.domeniu_id == Domeniu.id)
+            .where(ActDomeniu.act_id == articol.act_id)
+            .order_by(Domeniu.ordine, Domeniu.denumire)
+        )
+        
+        for assignment, domeniu in inherited_domenii:
+            domenii_list.append({
+                "id": domeniu.id,  # Changed from domeniu_id to match schema
+                "cod": domeniu.cod,
+                "denumire": domeniu.denumire,
+                "culoare": domeniu.culoare,
+                "source": "inherited"
+            })
+    
+    # Convert to response model
+    response_dict = {
+        **articol.__dict__,
+        "domenii": domenii_list
+    }
+    
+    return ArticolResponse(**response_dict)
 
 
 @router.get("/{articol_id}/with-issues", response_model=ArticolWithIssues)

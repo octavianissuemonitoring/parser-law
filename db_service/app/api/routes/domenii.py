@@ -175,6 +175,97 @@ async def delete_domeniu(
 # Act-Domeniu Assignments
 # ============================================================================
 
+@router.get("/acte/{act_id}")
+async def get_act_domenii(
+    act_id: int,
+    db: DBSession,
+):
+    """
+    Get all domains assigned to a legislative act.
+    
+    Returns list of domains with assignment details (relevanta).
+    """
+    # Verify act exists
+    act_result = await db.execute(select(ActLegislativ).where(ActLegislativ.id == act_id))
+    if not act_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Act with id {act_id} not found"
+        )
+    
+    # Get assignments
+    assignments = await db.execute(
+        select(ActDomeniu, Domeniu)
+        .join(Domeniu, ActDomeniu.domeniu_id == Domeniu.id)
+        .where(ActDomeniu.act_id == act_id)
+        .order_by(Domeniu.ordine, Domeniu.denumire)
+    )
+    
+    result = []
+    for assignment, domeniu in assignments:
+        result.append({
+            "domeniu_id": domeniu.id,
+            "cod": domeniu.cod,
+            "denumire": domeniu.denumire,
+            "culoare": domeniu.culoare,
+            "relevanta": float(assignment.relevanta) if assignment.relevanta else None,
+            "created_at": assignment.created_at.isoformat(),
+        })
+    
+    return {"act_id": act_id, "domenii": result}
+
+
+@router.put("/acte/{act_id}")
+async def replace_act_domenii(
+    act_id: int,
+    domenii_ids: list[int],
+    db: DBSession,
+):
+    """
+    Replace all domain assignments for an act.
+    
+    Deletes existing assignments and creates new ones.
+    Provide empty list to remove all domains.
+    
+    Body: [1, 3, 5] - list of domeniu IDs
+    """
+    # Verify act exists
+    act_result = await db.execute(select(ActLegislativ).where(ActLegislativ.id == act_id))
+    if not act_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Act with id {act_id} not found"
+        )
+    
+    # Verify all domenii exist
+    if domenii_ids:
+        domenii_result = await db.execute(
+            select(Domeniu).where(Domeniu.id.in_(domenii_ids))
+        )
+        existing_domenii = domenii_result.scalars().all()
+        if len(existing_domenii) != len(domenii_ids):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="One or more domeniu IDs not found"
+            )
+    
+    # Delete existing assignments
+    await db.execute(delete(ActDomeniu).where(ActDomeniu.act_id == act_id))
+    
+    # Create new assignments
+    for domeniu_id in domenii_ids:
+        db_assignment = ActDomeniu(
+            act_id=act_id,
+            domeniu_id=domeniu_id,
+            relevanta=1.0,  # Default relevance
+        )
+        db.add(db_assignment)
+    
+    await db.commit()
+    
+    return {"message": f"Replaced domains for act {act_id}", "domenii_count": len(domenii_ids)}
+
+
 @router.post("/acte/{act_id}/assign", status_code=status.HTTP_201_CREATED)
 async def assign_domeniu_to_act(
     act_id: int,
@@ -253,6 +344,124 @@ async def unassign_domeniu_from_act(
 # ============================================================================
 # Articol-Domeniu Assignments (Overrides)
 # ============================================================================
+
+@router.get("/articole/{articol_id}")
+async def get_articol_domenii(
+    articol_id: int,
+    db: DBSession,
+):
+    """
+    Get all domains assigned to an article.
+    
+    Returns domains explicitly assigned to this article.
+    Note: Articles inherit act domains if no explicit assignment exists.
+    """
+    # Verify articol exists
+    articol_result = await db.execute(select(Articol).where(Articol.id == articol_id))
+    articol = articol_result.scalar_one_or_none()
+    if not articol:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Articol with id {articol_id} not found"
+        )
+    
+    # Get explicit assignments
+    assignments = await db.execute(
+        select(ArticolDomeniu, Domeniu)
+        .join(Domeniu, ArticolDomeniu.domeniu_id == Domeniu.id)
+        .where(ArticolDomeniu.articol_id == articol_id)
+        .order_by(Domeniu.ordine, Domeniu.denumire)
+    )
+    
+    explicit_domenii = []
+    for assignment, domeniu in assignments:
+        explicit_domenii.append({
+            "domeniu_id": domeniu.id,
+            "cod": domeniu.cod,
+            "denumire": domeniu.denumire,
+            "culoare": domeniu.culoare,
+            "relevanta": float(assignment.relevanta) if assignment.relevanta else None,
+            "added_at": assignment.added_at.isoformat(),  # Changed from created_at
+            "source": "explicit"
+        })
+    
+    # If no explicit assignments, get inherited from act
+    inherited_domenii = []
+    if not explicit_domenii:
+        act_assignments = await db.execute(
+            select(ActDomeniu, Domeniu)
+            .join(Domeniu, ActDomeniu.domeniu_id == Domeniu.id)
+            .where(ActDomeniu.act_id == articol.act_id)
+            .order_by(Domeniu.ordine, Domeniu.denumire)
+        )
+        
+        for assignment, domeniu in act_assignments:
+            inherited_domenii.append({
+                "domeniu_id": domeniu.id,
+                "cod": domeniu.cod,
+                "denumire": domeniu.denumire,
+                "culoare": domeniu.culoare,
+                "relevanta": float(assignment.relevanta) if assignment.relevanta else None,
+                "source": "inherited"
+            })
+    
+    return {
+        "articol_id": articol_id,
+        "domenii": explicit_domenii if explicit_domenii else inherited_domenii,
+        "has_explicit_assignment": len(explicit_domenii) > 0
+    }
+
+
+@router.put("/articole/{articol_id}")
+async def replace_articol_domenii(
+    articol_id: int,
+    domenii_ids: list[int],
+    db: DBSession,
+):
+    """
+    Replace all domain assignments for an article.
+    
+    Deletes existing explicit assignments and creates new ones.
+    Provide empty list to remove explicit assignments (will inherit from act).
+    
+    Body: [1, 3, 5] - list of domeniu IDs
+    """
+    # Verify articol exists
+    articol_result = await db.execute(select(Articol).where(Articol.id == articol_id))
+    if not articol_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Articol with id {articol_id} not found"
+        )
+    
+    # Verify all domenii exist
+    if domenii_ids:
+        domenii_result = await db.execute(
+            select(Domeniu).where(Domeniu.id.in_(domenii_ids))
+        )
+        existing_domenii = domenii_result.scalars().all()
+        if len(existing_domenii) != len(domenii_ids):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="One or more domeniu IDs not found"
+            )
+    
+    # Delete existing assignments
+    await db.execute(delete(ArticolDomeniu).where(ArticolDomeniu.articol_id == articol_id))
+    
+    # Create new assignments
+    for domeniu_id in domenii_ids:
+        db_assignment = ArticolDomeniu(
+            articol_id=articol_id,
+            domeniu_id=domeniu_id,
+            relevanta=1.0,  # Default relevance
+        )
+        db.add(db_assignment)
+    
+    await db.commit()
+    
+    return {"message": f"Replaced domains for articol {articol_id}", "domenii_count": len(domenii_ids)}
+
 
 @router.post("/articole/{articol_id}/assign", status_code=status.HTTP_201_CREATED)
 async def assign_domeniu_to_articol(

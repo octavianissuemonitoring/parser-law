@@ -83,6 +83,7 @@ class ArticolResponse(ArticolBase):
     act_id: int
     created_at: datetime
     updated_at: datetime
+    domenii: list[DomeniuWithSource] = Field(default_factory=list, description="Domenii (explicit sau moștenite)")
 
 
 # # Schema with Act info included - DISABLED due to circular import
