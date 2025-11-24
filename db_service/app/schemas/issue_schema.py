@@ -70,7 +70,7 @@ class IssueLinkCreate(BaseModel):
     )
     document_id: int = Field(..., description="Document ID")
     issue_id: int = Field(..., description="Issue ID")
-    domeniu_id: int = Field(..., description="Domain ID (MANDATORY - issues are always contextualized)")
+    domeniu_id: Optional[int] = Field(None, description="Domain ID (optional - for contextualized issues)")
     relevance_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="AI relevance score (0.00-1.00)")
 
 
@@ -81,7 +81,7 @@ class IssueLinkResponse(BaseModel):
     document_type: str
     document_id: int
     issue_id: int
-    domeniu_id: int
+    domeniu_id: Optional[int] = None
     relevance_score: Optional[float] = None
     added_at: datetime
 
@@ -92,7 +92,7 @@ class IssueUnlink(BaseModel):
     document_type: Literal["articol", "act", "anexa"] = Field(..., description="Document type")
     document_id: int = Field(..., description="Document ID")
     issue_id: int = Field(..., description="Issue ID")
-    domeniu_id: int = Field(..., description="Domain ID")
+    domeniu_id: Optional[int] = Field(None, description="Domain ID (optional)")
 
 
 # ============================================================================

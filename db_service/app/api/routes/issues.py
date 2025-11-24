@@ -290,7 +290,7 @@ async def link_issue_to_document(
     Link an issue to a document (Tier 1: Direct assignment).
     
     Supported document types: articol, act, anexa.
-    Domain context is MANDATORY - issues are always contextualized.
+    Domain context is OPTIONAL - for flexible issue assignment.
     
     Example for AI service:
     ```json
@@ -303,13 +303,14 @@ async def link_issue_to_document(
     }
     ```
     """
-    # Verify domeniu exists
-    domeniu_result = await db.execute(select(Domeniu).where(Domeniu.id == link.domeniu_id))
-    if not domeniu_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Domeniu with id {link.domeniu_id} not found"
-        )
+    # Verify domeniu exists (if provided)
+    if link.domeniu_id is not None:
+        domeniu_result = await db.execute(select(Domeniu).where(Domeniu.id == link.domeniu_id))
+        if not domeniu_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Domeniu with id {link.domeniu_id} not found"
+            )
     
     # Verify issue exists
     issue_result = await db.execute(select(Issue).where(Issue.id == link.issue_id))
@@ -330,17 +331,26 @@ async def link_issue_to_document(
             )
         
         # Check if already linked
-        existing = await db.execute(
-            select(ArticolIssue).where(
-                (ArticolIssue.articol_id == link.document_id) &
-                (ArticolIssue.issue_id == link.issue_id) &
-                (ArticolIssue.domeniu_id == link.domeniu_id)
+        if link.domeniu_id is not None:
+            existing = await db.execute(
+                select(ArticolIssue).where(
+                    (ArticolIssue.articol_id == link.document_id) &
+                    (ArticolIssue.issue_id == link.issue_id) &
+                    (ArticolIssue.domeniu_id == link.domeniu_id)
+                )
             )
-        )
+        else:
+            existing = await db.execute(
+                select(ArticolIssue).where(
+                    (ArticolIssue.articol_id == link.document_id) &
+                    (ArticolIssue.issue_id == link.issue_id) &
+                    (ArticolIssue.domeniu_id.is_(None))
+                )
+            )
         if existing.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Issue already linked to this articol in this domain"
+                detail=f"Issue already linked to this articol{' in this domain' if link.domeniu_id else ''}"
             )
         
         # Create link
@@ -374,17 +384,26 @@ async def link_issue_to_document(
             )
         
         # Check if already linked
-        existing = await db.execute(
-            select(ActIssue).where(
-                (ActIssue.act_id == link.document_id) &
-                (ActIssue.issue_id == link.issue_id) &
-                (ActIssue.domeniu_id == link.domeniu_id)
+        if link.domeniu_id is not None:
+            existing = await db.execute(
+                select(ActIssue).where(
+                    (ActIssue.act_id == link.document_id) &
+                    (ActIssue.issue_id == link.issue_id) &
+                    (ActIssue.domeniu_id == link.domeniu_id)
+                )
             )
-        )
+        else:
+            existing = await db.execute(
+                select(ActIssue).where(
+                    (ActIssue.act_id == link.document_id) &
+                    (ActIssue.issue_id == link.issue_id) &
+                    (ActIssue.domeniu_id.is_(None))
+                )
+            )
         if existing.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Issue already linked to this act in this domain"
+                detail=f"Issue already linked to this act{' in this domain' if link.domeniu_id else ''}"
             )
         
         # Create link
@@ -418,17 +437,26 @@ async def link_issue_to_document(
             )
         
         # Check if already linked
-        existing = await db.execute(
-            select(AnexaIssue).where(
-                (AnexaIssue.anexa_id == link.document_id) &
-                (AnexaIssue.issue_id == link.issue_id) &
-                (AnexaIssue.domeniu_id == link.domeniu_id)
+        if link.domeniu_id is not None:
+            existing = await db.execute(
+                select(AnexaIssue).where(
+                    (AnexaIssue.anexa_id == link.document_id) &
+                    (AnexaIssue.issue_id == link.issue_id) &
+                    (AnexaIssue.domeniu_id == link.domeniu_id)
+                )
             )
-        )
+        else:
+            existing = await db.execute(
+                select(AnexaIssue).where(
+                    (AnexaIssue.anexa_id == link.document_id) &
+                    (AnexaIssue.issue_id == link.issue_id) &
+                    (AnexaIssue.domeniu_id.is_(None))
+                )
+            )
         if existing.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Issue already linked to this anexa in this domain"
+                detail=f"Issue already linked to this anexa{' in this domain' if link.domeniu_id else ''}"
             )
         
         # Create link
@@ -467,32 +495,59 @@ async def unlink_issue_from_document(
     """
     Unlink an issue from a document.
     
-    Removes the Tier 1 link between issue and document in specified domain.
+    Removes the Tier 1 link between issue and document (optionally in specified domain).
     """
     if unlink.document_type == "articol":
-        result = await db.execute(
-            delete(ArticolIssue).where(
-                (ArticolIssue.articol_id == unlink.document_id) &
-                (ArticolIssue.issue_id == unlink.issue_id) &
-                (ArticolIssue.domeniu_id == unlink.domeniu_id)
+        if unlink.domeniu_id is not None:
+            result = await db.execute(
+                delete(ArticolIssue).where(
+                    (ArticolIssue.articol_id == unlink.document_id) &
+                    (ArticolIssue.issue_id == unlink.issue_id) &
+                    (ArticolIssue.domeniu_id == unlink.domeniu_id)
+                )
             )
-        )
+        else:
+            result = await db.execute(
+                delete(ArticolIssue).where(
+                    (ArticolIssue.articol_id == unlink.document_id) &
+                    (ArticolIssue.issue_id == unlink.issue_id) &
+                    (ArticolIssue.domeniu_id.is_(None))
+                )
+            )
     elif unlink.document_type == "act":
-        result = await db.execute(
-            delete(ActIssue).where(
-                (ActIssue.act_id == unlink.document_id) &
-                (ActIssue.issue_id == unlink.issue_id) &
-                (ActIssue.domeniu_id == unlink.domeniu_id)
+        if unlink.domeniu_id is not None:
+            result = await db.execute(
+                delete(ActIssue).where(
+                    (ActIssue.act_id == unlink.document_id) &
+                    (ActIssue.issue_id == unlink.issue_id) &
+                    (ActIssue.domeniu_id == unlink.domeniu_id)
+                )
             )
-        )
+        else:
+            result = await db.execute(
+                delete(ActIssue).where(
+                    (ActIssue.act_id == unlink.document_id) &
+                    (ActIssue.issue_id == unlink.issue_id) &
+                    (ActIssue.domeniu_id.is_(None))
+                )
+            )
     elif unlink.document_type == "anexa":
-        result = await db.execute(
-            delete(AnexaIssue).where(
-                (AnexaIssue.anexa_id == unlink.document_id) &
-                (AnexaIssue.issue_id == unlink.issue_id) &
-                (AnexaIssue.domeniu_id == unlink.domeniu_id)
+        if unlink.domeniu_id is not None:
+            result = await db.execute(
+                delete(AnexaIssue).where(
+                    (AnexaIssue.anexa_id == unlink.document_id) &
+                    (AnexaIssue.issue_id == unlink.issue_id) &
+                    (AnexaIssue.domeniu_id == unlink.domeniu_id)
+                )
             )
-        )
+        else:
+            result = await db.execute(
+                delete(AnexaIssue).where(
+                    (AnexaIssue.anexa_id == unlink.document_id) &
+                    (AnexaIssue.issue_id == unlink.issue_id) &
+                    (AnexaIssue.domeniu_id.is_(None))
+                )
+            )
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
