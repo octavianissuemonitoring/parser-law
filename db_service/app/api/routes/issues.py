@@ -371,7 +371,7 @@ async def link_issue_to_document(
             issue_id=db_link.issue_id,
             domeniu_id=db_link.domeniu_id,
             relevance_score=float(db_link.relevance_score) if db_link.relevance_score else None,
-            added_at=db_link.added_at,
+            added_at=db_link.created_at,
         )
     
     elif link.document_type == "act":
@@ -424,7 +424,7 @@ async def link_issue_to_document(
             issue_id=db_link.issue_id,
             domeniu_id=db_link.domeniu_id,
             relevance_score=float(db_link.relevance_score) if db_link.relevance_score else None,
-            added_at=db_link.added_at,
+            added_at=db_link.created_at,
         )
     
     elif link.document_type == "anexa":
@@ -477,7 +477,7 @@ async def link_issue_to_document(
             issue_id=db_link.issue_id,
             domeniu_id=db_link.domeniu_id,
             relevance_score=float(db_link.relevance_score) if db_link.relevance_score else None,
-            added_at=db_link.added_at,
+            added_at=db_link.created_at,
         )
     
     else:
@@ -659,7 +659,7 @@ async def link_issue_to_structure(
         issue_id=db_link.issue_id,
         domeniu_id=db_link.domeniu_id,
         relevance_score=float(db_link.relevance_score) if db_link.relevance_score else None,
-        added_at=db_link.added_at,
+        added_at=db_link.created_at,
     )
 
 
