@@ -91,7 +91,7 @@ async def get_act_content(act_id: int, db: DBSession) -> ActWithContent:
                     "id": art_issue.domeniu.id,
                     "cod": art_issue.domeniu.cod,
                     "denumire": art_issue.domeniu.denumire,
-                    "culoare": art_issue.domeniu.culoare
+                    "culoare": getattr(art_issue.domeniu, 'culoare', None)
                 }
             })
             
@@ -107,7 +107,7 @@ async def get_act_content(act_id: int, db: DBSession) -> ActWithContent:
                     "id": ad.domeniu.id,
                     "cod": ad.domeniu.cod,
                     "denumire": ad.domeniu.denumire,
-                    "culoare": ad.domeniu.culoare,
+                    "culoare": getattr(ad.domeniu, 'culoare', None),
                     "source": "explicit"
                 })
         
@@ -118,7 +118,7 @@ async def get_act_content(act_id: int, db: DBSession) -> ActWithContent:
                     "id": d.id,
                     "cod": d.cod,
                     "denumire": d.denumire,
-                    "culoare": d.culoare,
+                    "culoare": getattr(d, 'culoare', None),
                     "source": "inherited"
                 })
         
