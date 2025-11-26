@@ -1,0 +1,83 @@
+/* ...existing code... */
+        .article-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .article-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* New styles for expanded article view */
+        .article-item-expanded {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            background-color: #fff;
+        }
+
+        .article-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .article-title {
+            font-size: 1.1em;
+            color: #2c3e50;
+        }
+
+        .article-issues-badges {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .badge-issue {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .article-content-row {
+            color: #555;
+            line-height: 1.5;
+            font-size: 0.95em;
+        }
+
+        .article-preview {
+            color: #666;
+        }
+
+        .article-full {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 3px solid #007bff;
+            margin-top: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .btn-expand, .btn-collapse {
+            background: none;
+            border: none;
+            color: #007bff;
+            cursor: pointer;
+            padding: 0;
+            font-size: 0.9em;
+            text-decoration: underline;
+            margin-left: 5px;
+        }
+
+        .btn-expand:hover, .btn-collapse:hover {
+            color: #0056b3;
+        }
+/* ...existing code... */

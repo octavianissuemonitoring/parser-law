@@ -6,6 +6,7 @@ from app.schemas.act_schema import (
     ActLegislativResponse,
     # ActLegislativWithArticole,  # DISABLED due to circular import
     ActLegislativList,
+    ActWithContent,
 )
 from app.schemas.articol_schema import (
     ArticolBase,

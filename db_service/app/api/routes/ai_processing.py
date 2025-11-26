@@ -31,6 +31,10 @@ AI_STATUS_PENDING = 0
 AI_STATUS_PROCESSING = 1
 AI_STATUS_COMPLETED = 2
 AI_STATUS_ERROR = 3
+AI_STATUS_SKIPPED = 9  # Optional status for articles that should be skipped
+
+# Valid status values
+VALID_AI_STATUSES = {0, 1, 2, 3, 9}
 
 # Mapping string names to integer values
 AI_STATUS_MAP = {
@@ -39,6 +43,7 @@ AI_STATUS_MAP = {
     "completed": AI_STATUS_COMPLETED,
     "processed": AI_STATUS_COMPLETED,  # Alias
     "error": AI_STATUS_ERROR,
+    "skipped": AI_STATUS_SKIPPED,
 }
 
 # Reverse mapping
@@ -47,6 +52,7 @@ AI_STATUS_NAMES = {
     AI_STATUS_PROCESSING: "processing",
     AI_STATUS_COMPLETED: "completed",
     AI_STATUS_ERROR: "error",
+    AI_STATUS_SKIPPED: "skipped",
 }
 
 
@@ -93,6 +99,22 @@ class AIStatusResponse(BaseModel):
     completed_count: int
     error_count: int
     total_count: int
+
+
+class UpdateStatusRequest(BaseModel):
+    """Request to update article AI status."""
+    article_id: int = Field(..., description="ID of the article to update")
+    status: int = Field(..., ge=0, le=9, description="New AI status (0=pending, 1=processing, 2=completed, 3=error, 9=skipped)")
+    explanation: Optional[str] = Field(None, max_length=2000, description="Optional explanation for the status change")
+
+
+class UpdateStatusResponse(BaseModel):
+    """Response after updating article status."""
+    success: bool
+    article_id: int
+    previous_status: int
+    new_status: int
+    updated_at: str
 
 
 class ArticleStatusResponse(BaseModel):
@@ -355,13 +377,17 @@ async def get_act_full_structure(
     )
 
 
-@router.post("/articole/{articol_id}/mark-processing", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/articole/{articol_id}/mark-processing", status_code=status.HTTP_204_NO_CONTENT, deprecated=True)
 async def mark_article_processing(articol_id: int, db: DBSession):
     """
+    **[DEPRECATED]** Use POST /articles/update-status instead.
+    
     **[AI Service]** Mark article as currently being processed.
     
     Sets `ai_status='processing'` to prevent duplicate processing.
     Call this before starting AI analysis of an article.
+    
+    **Migration:** Use `POST /articles/update-status` with `{"article_id": ID, "status": 1}`
     """
     result = await db.execute(select(Articol).where(Articol.id == articol_id))
     articol = result.scalar_one_or_none()
@@ -373,13 +399,17 @@ async def mark_article_processing(articol_id: int, db: DBSession):
     await db.commit()
 
 
-@router.post("/articole/{articol_id}/mark-processed", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/articole/{articol_id}/mark-processed", status_code=status.HTTP_204_NO_CONTENT, deprecated=True)
 async def mark_article_processed(articol_id: int, db: DBSession):
     """
+    **[DEPRECATED]** Use POST /articles/update-status instead.
+    
     **[AI Service]** Mark article as successfully processed.
     
     Sets `ai_status='processed'` and records timestamp.
     Call this after successfully analyzing article and posting issues.
+    
+    **Migration:** Use `POST /articles/update-status` with `{"article_id": ID, "status": 2}`
     """
     result = await db.execute(select(Articol).where(Articol.id == articol_id))
     articol = result.scalar_one_or_none()
@@ -392,17 +422,21 @@ async def mark_article_processed(articol_id: int, db: DBSession):
     await db.commit()
 
 
-@router.post("/articole/{articol_id}/mark-error")
+@router.post("/articole/{articol_id}/mark-error", deprecated=True)
 async def mark_article_error(
     articol_id: int,
     db: DBSession,
     error_message: str = Query(..., description="Error message"),
 ):
     """
+    **[DEPRECATED]** Use POST /articles/update-status instead.
+    
     **[AI Service]** Mark article as failed during processing.
     
     Sets `ai_status='error'` and stores error message.
     Call this if AI analysis fails for an article.
+    
+    **Migration:** Use `POST /articles/update-status` with `{"article_id": ID, "status": 3, "explanation": "error message"}`
     """
     result = await db.execute(select(Articol).where(Articol.id == articol_id))
     articol = result.scalar_one_or_none()
@@ -415,6 +449,214 @@ async def mark_article_error(
     await db.commit()
     
     return {"message": "Article marked as error", "error": error_message}
+
+
+# ============================================================================
+# ENDPOINTS - Status Management (NEW UNIFIED API)
+# ============================================================================
+
+@router.post("/articles/update-status", response_model=UpdateStatusResponse)
+async def update_article_status(
+    request: UpdateStatusRequest,
+    db: DBSession
+) -> UpdateStatusResponse:
+    """
+    **[NEW UNIFIED API]** Update AI processing status for an article.
+    
+    This endpoint replaces the three deprecated endpoints:
+    - POST /articole/{id}/mark-processing
+    - POST /articole/{id}/mark-processed  
+    - POST /articole/{id}/mark-error
+    
+    **Supported Status Values:**
+    - `0` = pending (reset to unprocessed state)
+    - `1` = processing (article is currently being analyzed)
+    - `2` = completed (successfully processed)
+    - `3` = error (processing failed)
+    - `9` = skipped (article intentionally skipped)
+    
+    **Request Body:**
+    ```json
+    {
+      "article_id": 1234,
+      "status": 2,
+      "explanation": "Optional explanation for the status change"
+    }
+    ```
+    
+    **Examples:**
+    
+    Mark as processing:
+    ```json
+    {"article_id": 1234, "status": 1}
+    ```
+    
+    Mark as completed:
+    ```json
+    {"article_id": 1234, "status": 2}
+    ```
+    
+    Mark as error with explanation:
+    ```json
+    {
+      "article_id": 1234,
+      "status": 3,
+      "explanation": "API timeout after 30 seconds"
+    }
+    ```
+    
+    Reset to pending:
+    ```json
+    {"article_id": 1234, "status": 0}
+    ```
+    """
+    # Validate status value
+    if request.status not in VALID_AI_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid status value {request.status}. Must be one of: {sorted(VALID_AI_STATUSES)}"
+        )
+    
+    # Fetch article
+    result = await db.execute(select(Articol).where(Articol.id == request.article_id))
+    articol = result.scalar_one_or_none()
+    
+    if not articol:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Article with id {request.article_id} not found"
+        )
+    
+    # Store previous status
+    previous_status = articol.ai_status
+    
+    # Update status
+    articol.ai_status = request.status
+    
+    # Update timestamp if completed
+    if request.status == AI_STATUS_COMPLETED:
+        articol.ai_processed_at = datetime.utcnow()
+    
+    # Store explanation in ai_error field (works for all statuses)
+    if request.explanation:
+        articol.ai_error = request.explanation
+    elif request.status != AI_STATUS_ERROR:
+        # Clear error field if status is not error and no explanation provided
+        articol.ai_error = None
+    
+    await db.commit()
+    
+    return UpdateStatusResponse(
+        success=True,
+        article_id=request.article_id,
+        previous_status=previous_status,
+        new_status=request.status,
+        updated_at=datetime.utcnow().isoformat()
+    )
+
+
+# ============================================================================
+# ENDPOINTS - Status Management (NEW UNIFIED API)
+# ============================================================================
+
+@router.post("/articles/update-status", response_model=UpdateStatusResponse)
+async def update_article_status(
+    request: UpdateStatusRequest,
+    db: DBSession
+) -> UpdateStatusResponse:
+    """
+    **[NEW UNIFIED API]** Update AI processing status for an article.
+    
+    This endpoint replaces the three deprecated endpoints:
+    - POST /articole/{id}/mark-processing
+    - POST /articole/{id}/mark-processed  
+    - POST /articole/{id}/mark-error
+    
+    **Supported Status Values:**
+    - `0` = pending (reset to unprocessed state)
+    - `1` = processing (article is currently being analyzed)
+    - `2` = completed (successfully processed)
+    - `3` = error (processing failed)
+    - `9` = skipped (article intentionally skipped)
+    
+    **Request Body:**
+    ```json
+    {
+      "article_id": 1234,
+      "status": 2,
+      "explanation": "Optional explanation for the status change"
+    }
+    ```
+    
+    **Examples:**
+    
+    Mark as processing:
+    ```json
+    {"article_id": 1234, "status": 1}
+    ```
+    
+    Mark as completed:
+    ```json
+    {"article_id": 1234, "status": 2}
+    ```
+    
+    Mark as error with explanation:
+    ```json
+    {
+      "article_id": 1234,
+      "status": 3,
+      "explanation": "API timeout after 30 seconds"
+    }
+    ```
+    
+    Reset to pending:
+    ```json
+    {"article_id": 1234, "status": 0}
+    ```
+    """
+    # Validate status value
+    if request.status not in VALID_AI_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid status value {request.status}. Must be one of: {sorted(VALID_AI_STATUSES)}"
+        )
+    
+    # Fetch article
+    result = await db.execute(select(Articol).where(Articol.id == request.article_id))
+    articol = result.scalar_one_or_none()
+    
+    if not articol:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Article with id {request.article_id} not found"
+        )
+    
+    # Store previous status
+    previous_status = articol.ai_status
+    
+    # Update status
+    articol.ai_status = request.status
+    
+    # Update timestamp if completed
+    if request.status == AI_STATUS_COMPLETED:
+        articol.ai_processed_at = datetime.utcnow()
+    
+    # Store explanation in ai_error field (works for all statuses)
+    if request.explanation:
+        articol.ai_error = request.explanation
+    elif request.status != AI_STATUS_ERROR:
+        # Clear error field if status is not error and no explanation provided
+        articol.ai_error = None
+    
+    await db.commit()
+    
+    return UpdateStatusResponse(
+        success=True,
+        article_id=request.article_id,
+        previous_status=previous_status,
+        new_status=request.status,
+        updated_at=datetime.utcnow().isoformat()
+    )
 
 
 # ============================================================================

@@ -8,17 +8,131 @@ from sqlalchemy import select, func, or_, cast, String
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DBSession, Pagination
-from app.models import ActLegislativ, Articol
+from app.models import ActLegislativ, Articol, ArticolIssue, Issue, ArticolDomeniu, Domeniu, ActDomeniu
 from app.schemas import (
     ActLegislativCreate,
     ActLegislativUpdate,
     ActLegislativResponse,
     # ActLegislativWithArticole,  # DISABLED due to circular import
     ActLegislativList,
+    ActWithContent,
 )
 from app.services import ImportService
 
 router = APIRouter(prefix="/acte", tags=["Acte Legislative"])
+
+
+@router.get("/{act_id}/content", response_model=ActWithContent)
+async def get_act_content(act_id: int, db: DBSession) -> ActWithContent:
+    """
+    Get act with full content: articles, issues, and domains.
+    
+    Optimized for frontend display:
+    - Includes all articles
+    - Includes all issues for each article (Tier 1)
+    - Includes effective domains for each article
+    """
+    # 1. Get Act
+    query = select(ActLegislativ).where(ActLegislativ.id == act_id)
+    result = await db.execute(query)
+    act = result.scalar_one_or_none()
+    
+    if not act:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Act {act_id} not found"
+        )
+    
+    # 2. Get Articles with Issues and Domains
+    # We need to construct the response manually to handle the complex domain logic
+    # (inheritance from act) which isn't easily done with just ORM loading
+    
+    # Get all articles
+    articole_query = (
+        select(Articol)
+        .where(Articol.act_id == act_id)
+        .order_by(Articol.ordine)
+        .options(
+            # Load issues
+            selectinload(Articol.articole_issues).selectinload(ArticolIssue.issue),
+            selectinload(Articol.articole_issues).selectinload(ArticolIssue.domeniu),
+            # Load explicit domains
+            selectinload(Articol.articole_domenii).selectinload(ArticolDomeniu.domeniu)
+        )
+    )
+    articole_result = await db.execute(articole_query)
+    articole = articole_result.scalars().all()
+    
+    # Get Act domains for inheritance
+    act_domenii_query = (
+        select(Domeniu)
+        .join(ActDomeniu, Domeniu.id == ActDomeniu.domeniu_id)
+        .where(ActDomeniu.act_id == act_id)
+        .order_by(Domeniu.denumire)
+    )
+    act_domenii_result = await db.execute(act_domenii_query)
+    act_domenii = act_domenii_result.scalars().all()
+    
+    # Transform to response format
+    articole_response = []
+    
+    for art in articole:
+        # Process Issues
+        issues_list = []
+        for art_issue in art.articole_issues:
+            issues_list.append({
+                "id": art_issue.issue.id,
+                "denumire": art_issue.issue.denumire,
+                "descriere": art_issue.issue.descriere,
+                "source": art_issue.issue.source,
+                "confidence_score": art_issue.issue.confidence_score,
+                "relevance_score": art_issue.relevance_score,
+                "domeniu": {
+                    "id": art_issue.domeniu.id,
+                    "cod": art_issue.domeniu.cod,
+                    "denumire": art_issue.domeniu.denumire,
+                    "culoare": art_issue.domeniu.culoare
+                }
+            })
+            
+        # Process Domains (Explicit vs Inherited)
+        domenii_list = []
+        has_explicit = False
+        
+        # Check explicit
+        if art.articole_domenii:
+            has_explicit = True
+            for ad in art.articole_domenii:
+                domenii_list.append({
+                    "id": ad.domeniu.id,
+                    "cod": ad.domeniu.cod,
+                    "denumire": ad.domeniu.denumire,
+                    "culoare": ad.domeniu.culoare,
+                    "source": "explicit"
+                })
+        
+        # If no explicit, use inherited
+        if not has_explicit:
+            for d in act_domenii:
+                domenii_list.append({
+                    "id": d.id,
+                    "cod": d.cod,
+                    "denumire": d.denumire,
+                    "culoare": d.culoare,
+                    "source": "inherited"
+                })
+        
+        # Construct article object
+        art_dict = art.__dict__.copy()
+        art_dict["issues"] = issues_list
+        art_dict["domenii"] = domenii_list
+        articole_response.append(art_dict)
+    
+    # Construct final response
+    response_dict = act.__dict__.copy()
+    response_dict["articole"] = articole_response
+    
+    return ActWithContent(**response_dict)
 
 
 @router.get("/search", response_model=ActLegislativList)

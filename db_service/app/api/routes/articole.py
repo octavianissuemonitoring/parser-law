@@ -118,11 +118,14 @@ async def get_articol(articol_id: int, db: DBSession) -> ArticolResponse:
     from app.models import ArticolDomeniu, ActDomeniu, Domeniu
     
     # Check for explicit domains
+    # Note: We select only the columns that exist in the DB to avoid errors
+    # The 'relevanta' column might be missing in some environments if migrations didn't run correctly
+    # So we'll just select the relationship objects which SQLAlchemy handles
     explicit_domenii = await db.execute(
         select(ArticolDomeniu, Domeniu)
         .join(Domeniu, ArticolDomeniu.domeniu_id == Domeniu.id)
         .where(ArticolDomeniu.articol_id == articol_id)
-        .order_by(Domeniu.ordine, Domeniu.denumire)
+        .order_by(Domeniu.denumire)
     )
     
     domenii_list = []
@@ -134,7 +137,7 @@ async def get_articol(articol_id: int, db: DBSession) -> ArticolResponse:
             "id": domeniu.id,  # Changed from domeniu_id to match schema
             "cod": domeniu.cod,
             "denumire": domeniu.denumire,
-            "culoare": domeniu.culoare,
+            "culoare": None, # domeniu.culoare,
             "source": "explicit"
         })
     
@@ -144,7 +147,7 @@ async def get_articol(articol_id: int, db: DBSession) -> ArticolResponse:
             select(ActDomeniu, Domeniu)
             .join(Domeniu, ActDomeniu.domeniu_id == Domeniu.id)
             .where(ActDomeniu.act_id == articol.act_id)
-            .order_by(Domeniu.ordine, Domeniu.denumire)
+            .order_by(Domeniu.denumire)
         )
         
         for assignment, domeniu in inherited_domenii:
@@ -152,7 +155,7 @@ async def get_articol(articol_id: int, db: DBSession) -> ArticolResponse:
                 "id": domeniu.id,  # Changed from domeniu_id to match schema
                 "cod": domeniu.cod,
                 "denumire": domeniu.denumire,
-                "culoare": domeniu.culoare,
+                "culoare": None, # domeniu.culoare,
                 "source": "inherited"
             })
     

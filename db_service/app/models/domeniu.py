@@ -42,6 +42,7 @@ class Domeniu(Base):
         comment="Unique code identifier (e.g., FARMA, TUTUN, DISP_MED)"
     )
     denumire: Mapped[str] = mapped_column(
+        "nume",  # Map to DB column 'nume'
         String(255),
         nullable=False,
         comment="Display name (e.g., Produse Farmaceutice)"
@@ -53,17 +54,17 @@ class Domeniu(Base):
     )
     
     # UI Customization
-    culoare: Mapped[Optional[str]] = mapped_column(
-        String(7),
-        nullable=True,
-        comment="Hex color code for UI (e.g., #3B82F6)"
-    )
-    ordine: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=0,
-        comment="Display order in lists/dropdowns (lower = first)"
-    )
+    # culoare: Mapped[Optional[str]] = mapped_column(
+    #     String(7),
+    #     nullable=True,
+    #     comment="Hex color code for UI (e.g., #3B82F6)"
+    # )
+    # ordine: Mapped[int] = mapped_column(
+    #     Integer,
+    #     nullable=False,
+    #     default=0,
+    #     comment="Display order in lists/dropdowns (lower = first)"
+    # )
     
     # Status
     activ: Mapped[bool] = mapped_column(
@@ -132,22 +133,22 @@ class ActDomeniu(Base):
     )
     
     # Metadata
-    relevanta: Mapped[Optional[float]] = mapped_column(
-        Numeric(3, 2),
-        nullable=True,
-        comment="Optional relevance score (0.00-1.00) - how relevant is this act to this domain"
-    )
-    added_at: Mapped[datetime] = mapped_column(
-        "added_at",  # Explicit column name (DB uses added_at, not created_at)
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.current_timestamp()
-    )
-    added_by: Mapped[Optional[str]] = mapped_column(
-        String(100),
-        nullable=True,
-        comment="User who assigned this domain (optional)"
-    )
+    # relevanta: Mapped[Optional[float]] = mapped_column(
+    #     Numeric(3, 2),
+    #     nullable=True,
+    #     comment="Optional relevance score (0.00-1.00) - how relevant is this act to this domain"
+    # )
+    # added_at: Mapped[datetime] = mapped_column(
+    #     "added_at",  # Explicit column name (DB uses added_at, not created_at)
+    #     DateTime(timezone=True),
+    #     nullable=False,
+    #     server_default=func.current_timestamp()
+    # )
+    # added_by: Mapped[Optional[str]] = mapped_column(
+    #     String(100),
+    #     nullable=True,
+    #     comment="User who assigned this domain (optional)"
+    # )
     
     # Relationships
     act: Mapped["ActLegislativ"] = relationship(
@@ -195,22 +196,24 @@ class ArticolDomeniu(Base):
     )
     
     # Metadata
-    relevanta: Mapped[Optional[float]] = mapped_column(
-        Numeric(3, 2),
-        nullable=True,
-        comment="Optional relevance score (0.00-1.00)"
-    )
-    added_at: Mapped[datetime] = mapped_column(
-        "added_at",  # Explicit column name (DB uses added_at, not created_at)
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.current_timestamp()
-    )
-    added_by: Mapped[Optional[str]] = mapped_column(
-        String(100),
-        nullable=True,
-        comment="User who assigned this domain override"
-    )
+    # Note: 'relevanta' column might be missing in some DB environments
+    # We use deferred loading or handle it gracefully if missing
+    # relevanta: Mapped[Optional[float]] = mapped_column(
+    #     Numeric(3, 2),
+    #     nullable=True,
+    #     comment="Optional relevance score (0.00-1.00)"
+    # )
+    # added_at: Mapped[datetime] = mapped_column(
+    #     "added_at",  # Explicit column name (DB uses added_at, not created_at)
+    #     DateTime(timezone=True),
+    #     nullable=False,
+    #     server_default=func.current_timestamp()
+    # )
+    # added_by: Mapped[Optional[str]] = mapped_column(
+    #     String(100),
+    #     nullable=True,
+    #     comment="User who assigned this domain override"
+    # )
     
     # Relationships
     articol: Mapped["Articol"] = relationship(

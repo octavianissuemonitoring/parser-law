@@ -5,6 +5,12 @@ from datetime import datetime, date
 from typing import Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field, ConfigDict
 
+# Import ArticolWithIssues for ActWithContent
+# We use a string forward reference in the model to avoid circular imports if any arise,
+# but here we need the actual class for the field definition if we don't use quotes.
+# Since articol_schema doesn't import act_schema at runtime, this is safe.
+from app.schemas.articol_schema import ArticolWithIssues
+
 if TYPE_CHECKING:
     from app.schemas.articol_schema import ArticolResponse
 
@@ -81,4 +87,12 @@ class ActLegislativList(BaseModel):
     page: int
     size: int
     pages: int
+
+
+# Schema for Act with full content (Articles + Issues)
+class ActWithContent(ActLegislativResponse):
+    """Schema for Act with full content (Articles + Issues)."""
+    
+    articole: list[ArticolWithIssues] = Field(default_factory=list, description="Articles with issues")
+
 

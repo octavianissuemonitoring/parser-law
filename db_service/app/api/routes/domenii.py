@@ -40,7 +40,7 @@ async def list_domenii(
     
     Returns domains ordered by `ordine` field (lower = displayed first).
     """
-    query = select(Domeniu).order_by(Domeniu.ordine, Domeniu.denumire)
+    query = select(Domeniu).order_by(Domeniu.denumire)
     
     # Apply filters
     if activ is not None:
@@ -198,7 +198,7 @@ async def get_act_domenii(
         select(ActDomeniu, Domeniu)
         .join(Domeniu, ActDomeniu.domeniu_id == Domeniu.id)
         .where(ActDomeniu.act_id == act_id)
-        .order_by(Domeniu.ordine, Domeniu.denumire)
+        .order_by(Domeniu.denumire)
     )
     
     result = []
@@ -207,9 +207,9 @@ async def get_act_domenii(
             "domeniu_id": domeniu.id,
             "cod": domeniu.cod,
             "denumire": domeniu.denumire,
-            "culoare": domeniu.culoare,
-            "relevanta": float(assignment.relevanta) if assignment.relevanta else None,
-            "added_at": assignment.added_at.isoformat(),
+            "culoare": None, # domeniu.culoare,
+            "relevanta": None, # float(assignment.relevanta) if assignment.relevanta else None,
+            "added_at": None, # assignment.added_at.isoformat(),
         })
     
     return {"act_id": act_id, "domenii": result}
@@ -370,7 +370,7 @@ async def get_articol_domenii(
         select(ArticolDomeniu, Domeniu)
         .join(Domeniu, ArticolDomeniu.domeniu_id == Domeniu.id)
         .where(ArticolDomeniu.articol_id == articol_id)
-        .order_by(Domeniu.ordine, Domeniu.denumire)
+        .order_by(Domeniu.denumire)
     )
     
     explicit_domenii = []
@@ -379,9 +379,9 @@ async def get_articol_domenii(
             "domeniu_id": domeniu.id,
             "cod": domeniu.cod,
             "denumire": domeniu.denumire,
-            "culoare": domeniu.culoare,
-            "relevanta": float(assignment.relevanta) if assignment.relevanta else None,
-            "added_at": assignment.added_at.isoformat(),  # Changed from created_at
+            "culoare": None, # domeniu.culoare,
+            "relevanta": None, # float(assignment.relevanta) if assignment.relevanta else None,
+            "added_at": None, # assignment.added_at.isoformat(),  # Changed from created_at
             "source": "explicit"
         })
     
@@ -392,7 +392,7 @@ async def get_articol_domenii(
             select(ActDomeniu, Domeniu)
             .join(Domeniu, ActDomeniu.domeniu_id == Domeniu.id)
             .where(ActDomeniu.act_id == articol.act_id)
-            .order_by(Domeniu.ordine, Domeniu.denumire)
+            .order_by(Domeniu.denumire)
         )
         
         for assignment, domeniu in act_assignments:
@@ -400,8 +400,8 @@ async def get_articol_domenii(
                 "domeniu_id": domeniu.id,
                 "cod": domeniu.cod,
                 "denumire": domeniu.denumire,
-                "culoare": domeniu.culoare,
-                "relevanta": float(assignment.relevanta) if assignment.relevanta else None,
+                "culoare": None, # domeniu.culoare,
+                "relevanta": None, # float(assignment.relevanta) if assignment.relevanta else None,
                 "source": "inherited"
             })
     

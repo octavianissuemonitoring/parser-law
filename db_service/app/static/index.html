@@ -563,6 +563,73 @@
             background: white;
             padding-left: 20px;
         }
+        
+        /* Accordion Styles */
+        .accordion-item {
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        
+        .accordion-header {
+            background: #f8f9fa;
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        
+        .accordion-header:hover {
+            background: #e9ecef;
+        }
+        
+        .accordion-header.active {
+            background: #e2e6ea;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .accordion-content {
+            display: none;
+            padding: 20px;
+            background: white;
+            line-height: 1.6;
+        }
+        
+        .accordion-content.active {
+            display: block;
+        }
+        
+        .issue-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: bold;
+            margin-left: 10px;
+            color: white;
+        }
+        
+        .issue-badge.high { background-color: #dc3545; }
+        .issue-badge.medium { background-color: #ffc107; color: #000; }
+        .issue-badge.low { background-color: #17a2b8; }
+        
+        .article-meta {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        
+        .article-text {
+            white-space: pre-wrap;
+        }
+        
+        .act-content-modal-width {
+            max-width: 900px;
+            width: 95%;
+        }
     </style>
 </head>
 <body>
@@ -1017,14 +1084,9 @@
             document.getElementById('index-container').innerHTML = '';
             
             try {
-                // Fetch act details
-                const actResponse = await fetch(`${API_BASE}/acte/${actId}`);
-                const act = await actResponse.json();
-                
-                // Fetch articles for this act
-                const articlesResponse = await fetch(`${API_BASE}/articole?act_id=${actId}&limit=500`);
-                const articlesData = await articlesResponse.json();
-                act.articole = articlesData.items || articlesData;
+                // Fetch act content with issues using the new endpoint
+                const response = await fetch(`${API_BASE}/acte/${actId}/content`);
+                const act = await response.json();
                 
                 document.getElementById('index-loading').style.display = 'none';
                 
@@ -1062,11 +1124,42 @@
                     `;
                     
                     chapters[chapterName].forEach(art => {
-                        const preview = art.text_articol ? art.text_articol.substring(0, 100) + '...' : '';
+                        // Generate issues badges
+                        let issuesHtml = '';
+                        if (art.issues && art.issues.length > 0) {
+                            issuesHtml = '<div class="article-issues-badges">';
+                            art.issues.forEach(issue => {
+                                issuesHtml += `
+                                    <span class="badge badge-issue" title="${issue.descriere}">
+                                        ⚠️ ${issue.denumire}
+                                    </span>
+                                `;
+                            });
+                            issuesHtml += '</div>';
+                        }
+
+                        // Preview text (first line or 100 chars)
+                        const fullText = art.text_articol || '';
+                        const previewText = fullText.length > 150 ? fullText.substring(0, 150) + '...' : fullText;
+                        
                         html += `
-                            <li class="article-item" onclick="showArticleContent(${art.id})" title="${preview}">
-                                <strong>${art.articol_label || 'Art. ' + art.articol_nr}</strong>
-                                ${preview ? ` - ${preview}` : ''}
+                            <li class="article-item-expanded">
+                                <div class="article-header-row">
+                                    <div class="article-title">
+                                        <strong>${art.articol_label || 'Art. ' + art.articol_nr}</strong>
+                                    </div>
+                                    ${issuesHtml}
+                                </div>
+                                <div class="article-content-row">
+                                    <div class="article-preview" id="preview-${art.id}">
+                                        ${previewText}
+                                        ${fullText.length > 150 ? `<button class="btn-expand" onclick="toggleArticle(${art.id})">Vezi tot</button>` : ''}
+                                    </div>
+                                    <div class="article-full hidden" id="full-${art.id}">
+                                        ${fullText.replace(/\n/g, '<br>')}
+                                        <button class="btn-collapse" onclick="toggleArticle(${art.id})">Restrânge</button>
+                                    </div>
+                                </div>
                             </li>
                         `;
                     });
@@ -1079,6 +1172,19 @@
             
             html += '</div>';
             return html;
+        }
+        
+        function toggleArticle(id) {
+            const preview = document.getElementById(`preview-${id}`);
+            const full = document.getElementById(`full-${id}`);
+            
+            if (full.classList.contains('hidden')) {
+                full.classList.remove('hidden');
+                preview.classList.add('hidden');
+            } else {
+                full.classList.add('hidden');
+                preview.classList.remove('hidden');
+            }
         }
         
         function showArticleContent(articleId) {
@@ -1496,6 +1602,20 @@
                     <button class="btn-secondary" onclick="closeDomeniiModal()">Anulează</button>
                     <button class="btn btn-primary" onclick="saveActDomenii()">💾 Salvează</button>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Act Content Modal -->
+    <div id="act-content-modal" class="modal">
+        <div class="modal-content act-content-modal-width">
+            <div class="modal-header">
+                <h2 id="act-content-title">Vizualizare Act</h2>
+                <span class="close-modal" onclick="closeActContentModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="act-content-body">
+                <div class="loading-spinner"></div>
+                <p style="text-align: center;">Se încarcă conținutul actului...</p>
             </div>
         </div>
     </div>
