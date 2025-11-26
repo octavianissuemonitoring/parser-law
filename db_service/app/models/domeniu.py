@@ -42,7 +42,6 @@ class Domeniu(Base):
         comment="Unique code identifier (e.g., FARMA, TUTUN, DISP_MED)"
     )
     denumire: Mapped[str] = mapped_column(
-        "nume",  # Map to DB column 'nume'
         String(255),
         nullable=False,
         comment="Display name (e.g., Produse Farmaceutice)"
