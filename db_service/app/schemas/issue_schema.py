@@ -151,7 +151,7 @@ class StructureIssueUnlink(BaseModel):
 class IssueWithContext(IssueMinimal):
     """Issue with domain context and relevance for embedding in document responses."""
     
-    domeniu: DomeniuMinimal
+    domeniu: Optional[DomeniuMinimal] = Field(None, description="Domain context (optional if not specified)")
     relevance_score: Optional[float] = None
     tier: Literal[1, 2] = Field(..., description="Tier 1 (direct) or Tier 2 (structure)")
 

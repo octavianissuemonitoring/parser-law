@@ -218,7 +218,7 @@ async def get_articol_with_issues(
     issues_query = (
         select(ArticolIssue, Issue, Domeniu)
         .join(Issue, ArticolIssue.issue_id == Issue.id)
-        .join(Domeniu, ArticolIssue.domeniu_id == Domeniu.id)
+        .outerjoin(Domeniu, ArticolIssue.domeniu_id == Domeniu.id)  # LEFT JOIN instead of INNER JOIN
         .where(ArticolIssue.articol_id == articol_id)
     )
     
@@ -239,8 +239,8 @@ async def get_articol_with_issues(
                 id=domeniu.id,
                 cod=domeniu.cod,
                 denumire=domeniu.denumire,
-                culoare=domeniu.culoare,
-            ),
+                culoare=getattr(domeniu, 'culoare', None),
+            ) if domeniu else None,  # Handle NULL domeniu
             relevance_score=float(articol_issue.relevance_score) if articol_issue.relevance_score else None,
             tier=1,  # Tier 1: Direct issue
         )
